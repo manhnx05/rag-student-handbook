@@ -1,0 +1,18 @@
+[project]
+name = "rag-student-handbook"
+version = "0.2.0"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-text-splitters>=1.1.2",
+    "langchain-openai>=0.3.2",
+    "langchain-neo4j>=0.2.0",
+    "neo4j>=5.26.0",
+    "chromadb>=0.6.5",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic-settings>=2.14.1",
+    "pydantic>=2.10.3",
+    "pypdf>=6.13.3",
+    "tiktoken>=0.13.0",
+    "python-multipart>=0.0.12",
+]
