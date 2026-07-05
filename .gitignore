@@ -32,7 +32,15 @@ env/
 
 # Data
 data/vector_db/
+data/uploads/
 *.pdf
+
+# Node modules
+node_modules/
+.next/
+
+# Docker
+docker-compose.override.yml
 
 # Lock file (optional but recommended to commit)
 # uv.lock
