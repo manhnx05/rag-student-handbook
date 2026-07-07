@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gpt-4o-mini"
     
     # Postgres
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/medi_chattbot"
+    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/student_handbook"
     
     # Neo4j
     NEO4J_URI: str = "bolt://localhost:7687"
