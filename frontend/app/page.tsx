@@ -27,7 +27,7 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Medi-Chatbot</h1>
+      <h1 className="text-2xl font-bold mb-4">Student Handbook Chatbot</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-2">
         <input
           type="text"
