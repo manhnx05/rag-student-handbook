@@ -7,8 +7,7 @@ from backend.app.db import models
 
 # Create tables
 Base.metadata.create_all(bind=engine)
-
-app = FastAPI(title="Medi-Chatbot API", version="2.0.0")
+app = FastAPI(title="Student Handbook API", version="2.0.0")
 
 # CORS
 app.add_middleware(
@@ -24,4 +23,4 @@ app.include_router(api_router, prefix="/api")
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to Medi-Chatbot API"}
+    return {"message": "Welcome to Student Handbook API"}
