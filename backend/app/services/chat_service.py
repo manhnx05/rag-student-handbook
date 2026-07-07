@@ -5,7 +5,6 @@ from langchain_core.output_parsers import StrOutputParser
 from backend.app.config import settings
 from backend.app.rag.retriever import hybrid_retrieve
 from backend.app.core.graph_store import get_graph_store
-from typing import Optional
 
 class ChatService:
     def __init__(self):
@@ -17,7 +16,7 @@ class ChatService:
         self.graph = get_graph_store()
         
         self.prompt = ChatPromptTemplate.from_template("""
-You are a helpful assistant that answers questions about the student handbook and patient data.
+You are a helpful assistant that answers questions about the student handbook.
 Use the following context to answer the question. If you don't know, just say you don't know.
 
 Context: {context}
@@ -28,7 +27,7 @@ Answer in Vietnamese:
 """)
         self.chain = self.prompt | self.llm | StrOutputParser()
     
-    def query(self, question: str, patient_id: Optional[str] = None):
+    def query(self, question: str):
         # Retrieve from vector store
         vector_results = hybrid_retrieve(question)
         
