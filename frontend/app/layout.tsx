@@ -2,8 +2,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Medi-Chatbot',
-  description: 'A RAG-based medical chatbot',
+  title: 'Student Handbook',
+  description: 'A RAG-based student handbook',
 }
 
 export default function RootLayout({
