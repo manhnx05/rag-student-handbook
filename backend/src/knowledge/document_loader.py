@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from src.config import settings
+from backend.src.core.config import settings
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 

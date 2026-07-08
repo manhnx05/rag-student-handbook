@@ -1,7 +1,7 @@
 import json
 import os
-from src.core.chunker import process_pdf_to_chunks
-from src.core.vector_store import get_vector_store
+from backend.src.knowledge.text_splitter import process_pdf_to_chunks
+from backend.src.memory.vector_store import get_vector_store
 
 
 def ingest_pdf(pdf_path: str, clear_existing: bool = False) -> int:

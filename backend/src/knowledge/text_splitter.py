@@ -1,7 +1,7 @@
 import os
 from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from src.config import settings
+from backend.src.core.config import settings
 
 
 def process_pdf_to_chunks(pdf_path: str):
