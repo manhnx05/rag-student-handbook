@@ -1,1 +1,0 @@
-# No relational models configured
