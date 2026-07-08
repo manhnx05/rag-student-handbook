@@ -1,5 +1,5 @@
 from neo4j import GraphDatabase, exceptions
-from src.config import settings
+from backend.src.core.config import settings
 from typing import List, Dict, Any, Optional
 from langchain_neo4j import Neo4jGraph
 

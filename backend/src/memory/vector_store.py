@@ -1,8 +1,8 @@
 import os
 import chromadb
 from chromadb.utils import embedding_functions
-from src.config import settings
-from src.core.embedder import get_embedding_model
+from backend.src.core.config import settings
+from backend.src.memory.embeddings import get_embedding_model
 
 
 class VectorStore:
