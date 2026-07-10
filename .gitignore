@@ -44,3 +44,8 @@ docker-compose.override.yml
 
 # Lock file (optional but recommended to commit)
 # uv.lock
+
+# Markdown files
+*.md
+!README.md
+!docs/README.md
