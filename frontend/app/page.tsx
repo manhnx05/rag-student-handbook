@@ -41,11 +41,31 @@ export default function Home() {
     setIsLoading(true)
 
     try {
-      // In the future this will be replaced with SSE Streaming
-      const response = await axios.post('http://localhost:8000/api/chat', {
-        question: userMsg
+      const response = await fetch('http://localhost:8000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: userMsg })
       })
-      setMessages(prev => [...prev, { role: 'assistant', content: response.data.answer || response.data }])
+
+      if (!response.body) throw new Error('No response body')
+      
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantMsg = ''
+
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        assistantMsg += chunk
+        setMessages(prev => {
+          const newMessages = [...prev]
+          newMessages[newMessages.length - 1].content = assistantMsg
+          return newMessages
+        })
+      }
     } catch (error) {
       console.error(error)
       setMessages(prev => [...prev, { role: 'assistant', content: '**Lỗi:** Có lỗi xảy ra khi kết nối tới máy chủ, vui lòng thử lại sau.' }])
