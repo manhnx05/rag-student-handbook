@@ -1,7 +1,7 @@
 
 # Medi-Chatbot
 
-Hệ thống chatbot y tế sử dụng RAG với kiến trúc:
+Hệ thống chatbot sử dụng RAG với kiến trúc:
 - Postgres: Lưu dữ liệu bệnh nhân và khám bệnh
 - Neo4j: Lưu đồ thị kiến thức
 - Qdrant: Vector DB cho tìm kiếm ngữ nghĩa
