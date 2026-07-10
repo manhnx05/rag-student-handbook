@@ -1,6 +1,6 @@
 import os
 import tempfile
-from src.core.chunker import process_pdf_to_chunks
+from backend.src.knowledge.text_splitter import process_pdf_to_chunks
 from pypdf import PdfWriter
 
 

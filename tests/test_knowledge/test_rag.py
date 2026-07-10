@@ -1,6 +1,6 @@
 import os
 import tempfile
-from src.core.vector_store import VectorStore
+from backend.src.memory.vector_store import VectorStore
 
 
 def test_vector_store():
@@ -12,16 +12,16 @@ def test_vector_store():
     try:
         # Reset settings to use temp dir
         from importlib import reload
-        import src.config
-        reload(src.config)
-        from src.config import settings
+        import backend.src.core.config
+        reload(backend.src.core.config)
+        from backend.src.core.config import settings
         settings.CHROMA_DB_PATH = temp_dir
         settings.CHROMA_COLLECTION_NAME = "test_collection"
         
         # Reload vector store module
-        import src.core.vector_store
-        reload(src.core.vector_store)
-        from src.core.vector_store import VectorStore, get_vector_store
+        import backend.src.memory.vector_store
+        reload(backend.src.memory.vector_store)
+        from backend.src.memory.vector_store import VectorStore, get_vector_store
         
         # Test 1: Create vector store
         vs = VectorStore()
