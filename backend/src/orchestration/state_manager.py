@@ -1,3 +1,5 @@
+from typing import Any
+
 class StateManager:
     def __init__(self):
         self.state = {}
@@ -5,7 +7,7 @@ class StateManager:
     def get_state(self, key: str):
         return self.state.get(key)
 
-    def set_state(self, key: str, value: any):
+    def set_state(self, key: str, value: Any):
         self.state[key] = value
 
     def clear_state(self, key: str):
