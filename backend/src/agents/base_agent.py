@@ -2,5 +2,5 @@ from abc import ABC, abstractmethod
 
 class BaseAgent(ABC):
     @abstractmethod
-    def run(self, query: str) -> str:
+    async def run(self, query: str) -> str:
         pass
