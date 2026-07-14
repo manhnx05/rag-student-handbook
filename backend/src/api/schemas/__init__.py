@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 class StudentHandbookQuery(BaseModel):
     query: str = Field(..., description="The query string from the user.")
-    session_id: str = Field(None, description="Optional session ID for conversation history.")
+    session_id: str | None = Field(None, description="Optional session ID for conversation history.")
 
 class StudentHandbookResponse(BaseModel):
     answer: str = Field(..., description="The AI agent's answer.")
