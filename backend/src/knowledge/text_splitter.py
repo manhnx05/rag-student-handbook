@@ -1,7 +1,7 @@
 import os
 from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from backend.src.core.config import settings
+from src.core.config import settings
 
 
 def process_pdf_to_chunks(pdf_path: str):
@@ -12,8 +12,9 @@ def process_pdf_to_chunks(pdf_path: str):
         raise FileNotFoundError(f"PDF file not found at the specified path: {pdf_path}")
 
     # Extract text from PDF along with page number metadata
+    from typing import Any
     reader = PdfReader(pdf_path)
-    raw_documents = []
+    raw_documents: list[dict[str, Any]] = []
     file_name = os.path.basename(pdf_path)
 
     print(f"Reading document: {file_name}...")
