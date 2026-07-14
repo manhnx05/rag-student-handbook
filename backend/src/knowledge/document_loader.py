@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from backend.src.core.config import settings
+from src.core.config import settings
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 
@@ -26,10 +26,11 @@ class ExtractionResult(BaseModel):
 
 def extract_entities_and_relationships(text: str) -> ExtractionResult:
     """Extract entities and relationships from text using LLM."""
+    from pydantic import SecretStr
     llm = ChatOpenAI(
         model=settings.LLM_MODEL,
         temperature=0,
-        openai_api_key=settings.OPENAI_API_KEY
+        api_key=SecretStr(settings.OPENAI_API_KEY)
     )
     
     prompt = ChatPromptTemplate.from_messages([
@@ -78,20 +79,20 @@ def extract_from_chunks(chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
     # Deduplicate entities
     seen = set()
     unique_entities = []
-    for entity in all_entities:
-        key = (entity["name"], entity["type"])
+    for e in all_entities:
+        key = (e["name"], e["type"])
         if key not in seen:
             seen.add(key)
-            unique_entities.append(entity)
+            unique_entities.append(e)
     
     # Deduplicate relationships
     seen_rels = set()
     unique_relationships = []
-    for rel in all_relationships:
-        key = (rel["source"], rel["target"], rel["type"])
-        if key not in seen_rels:
-            seen_rels.add(key)
-            unique_relationships.append(rel)
+    for r in all_relationships:
+        rel_key = (r["source"], r["target"], r["type"])
+        if rel_key not in seen_rels:
+            seen_rels.add(rel_key)
+            unique_relationships.append(r)
     
     return {
         "entities": unique_entities,
