@@ -7,7 +7,7 @@ class HandbookOrchestrator:
     def __init__(self):
         self.agent = HandbookAgent()
         
-    async def process_query(self, query: str, session_id: str = None):
+    async def process_query(self, query: str, session_id: str | None = None):
         """
         Process a user query through the RAG pipeline and agent logic.
         This method will eventually yield streaming responses.
