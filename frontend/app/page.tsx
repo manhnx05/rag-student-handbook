@@ -23,7 +23,15 @@ export default function Home() {
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionId, setSessionId] = useState<string>('')
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Generate a random session ID on mount if it doesn't exist
+    if (!sessionId) {
+      setSessionId(crypto.randomUUID())
+    }
+  }, [sessionId])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -44,7 +52,7 @@ export default function Home() {
       const response = await fetch('http://localhost:8000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: userMsg })
+        body: JSON.stringify({ question: userMsg, session_id: sessionId })
       })
 
       if (!response.body) throw new Error('No response body')
