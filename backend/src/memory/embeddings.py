@@ -1,5 +1,5 @@
 from langchain_openai import OpenAIEmbeddings
-from backend.src.core.config import settings
+from src.core.config import settings
 
 
 def get_embedding_model():
