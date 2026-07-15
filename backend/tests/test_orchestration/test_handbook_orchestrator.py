@@ -4,19 +4,23 @@ from src.orchestration.handbook_orchestrator import HandbookOrchestrator
 @pytest.mark.asyncio
 async def test_orchestrator_initialization():
     orchestrator = HandbookOrchestrator()
-    assert orchestrator.agent is not None
+    assert orchestrator.handbook_agent is not None
 
 @pytest.mark.asyncio
 async def test_process_query(mocker):
     import asyncio
-    # Mock the HandbookAgent.run method
     orchestrator = HandbookOrchestrator()
     
-    async def mock_run(query):
-        return "Mocked response from agent"
+    async def mock_stream(*args, **kwargs):
+        yield "Mocked "
+        yield "response "
+        yield "from agent"
         
-    mocker.patch.object(orchestrator.agent, 'run', side_effect=mock_run)
+    mocker.patch.object(orchestrator, 'process_query_stream', side_effect=mock_stream)
     
-    response = await orchestrator.process_query("What is the tuition fee?")
-    assert response == "Mocked response from agent"
-    orchestrator.agent.run.assert_called_once_with("What is the tuition fee?")
+    response_chunks = []
+    async for chunk in orchestrator.process_query_stream("What is the tuition fee?"):
+        response_chunks.append(chunk)
+        
+    assert "".join(response_chunks) == "Mocked response from agent"
+    orchestrator.process_query_stream.assert_called_once_with("What is the tuition fee?")
