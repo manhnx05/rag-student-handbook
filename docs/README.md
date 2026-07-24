@@ -1,5 +1,5 @@
 
-# Medi-Chatbot
+# Handbook-Chatbot
 
 Hệ thống chatbot sử dụng RAG với kiến trúc:
 - Postgres: Lưu dữ liệu bệnh nhân và khám bệnh
