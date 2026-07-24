@@ -7,9 +7,9 @@ from langchain_neo4j import Neo4jGraph
 class GraphStore:
     def __init__(self):
         self.uri = settings.NEO4J_URI
-        self.username = settings.NEO4J_USERNAME
+        self.username = settings.NEO4J_USER
         self.password = settings.NEO4J_PASSWORD
-        self.database = settings.NEO4J_DATABASE
+        self.database = settings.NEO4J_DB
         self.driver = None
         self.graph = None
         self._connect()
