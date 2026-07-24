@@ -9,7 +9,7 @@ class HandbookOrchestrator:
         self.handbook_agent = HandbookAgent()
         self.executor = self.handbook_agent.get_executor()
         
-    async def process_query_stream(self, query: str, session_id: str | None = None):
+    async def process_query_stream(self, query: str, session_id: str | None = None, history: list = None):
         """
         Process a user query and yield streaming responses from the agent.
         """
@@ -18,10 +18,21 @@ class HandbookOrchestrator:
             
         config = {"configurable": {"thread_id": session_id}}
         
+        # Build messages from history
+        messages = []
+        if history:
+            for role, content in history:
+                if role == "user":
+                    messages.append(("user", content))
+                elif role == "ai":
+                    messages.append(("assistant", content))
+        
+        messages.append(("user", query))
+        
         async for event in self.executor.astream_events(
-            {"messages": [("user", query)]},
+            {"messages": messages},
             config=config,
-            version="v2" # LangGraph works best with v2 events
+            version="v2"
         ):
             kind = event["event"]
             if kind == "on_chat_model_stream":
