@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes import chat, health, ingest, auth
+from src.core.config import settings
 
 app = FastAPI(
     title="Student Handbook RAG API",
@@ -8,10 +9,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware to allow requests from the frontend
+# CORS — origins are read from settings.CORS_ORIGINS so they can be
+# overridden at deploy time via the CORS_ORIGINS environment variable
+# without touching source code (e.g. "http://localhost:3000,https://prod.example.com").
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
