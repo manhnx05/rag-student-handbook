@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -31,7 +31,6 @@ services:
     volumes:
       - neo4j_data:/data
       - ./infra/neo4j/init.cypher:/init.cypher
-    command: bash -c "neo4j-admin server start && sleep 30 && cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -f /init.cypher || neo4j-admin server start"
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
       interval: 10s
@@ -47,11 +46,6 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
       - ./infra/qdrant/config.yaml:/qdrant/config/production.yaml
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6333/readyz || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   backend:
     build:
@@ -63,7 +57,7 @@ services:
       neo4j:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       NEO4J_URI: bolt://neo4j:7687

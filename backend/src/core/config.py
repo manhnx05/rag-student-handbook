@@ -1,7 +1,9 @@
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'), env_file_encoding='utf-8', extra='ignore')
     CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 100
     
@@ -25,5 +27,20 @@ class Settings(BaseSettings):
     
     # Retrieval
     TOP_K_RESULTS: int = 3
+    
+    # Auth
+    JWT_SECRET_KEY: str = "super_secret_key_please_change_in_production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
+    
+    # Resend
+    RESEND_API_KEY: str = ""
+    
+    @property
+    def async_database_url(self) -> str:
+        # asyncpg requires postgresql+asyncpg
+        if self.DATABASE_URL.startswith("postgresql://"):
+            return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return self.DATABASE_URL
 
 settings = Settings()
