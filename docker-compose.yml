@@ -1,92 +1,183 @@
 version: '3.8'
 
+# ---------------------------------------------------------------------------
+# RAG Student Handbook — full Docker Compose stack
+#
+# Services:
+#   postgres   — relational store for users / chat sessions / messages
+#   neo4j      — knowledge graph store for entity relationships
+#   qdrant     — vector store for semantic search
+#   backend    — FastAPI application (Python 3.12)
+#   frontend   — Next.js 14 application
+#   nginx      — reverse proxy (port 80 → backend:8000 / frontend:3000)
+#
+# Usage:
+#   cp .env.example .env   # fill in secrets
+#   docker compose up -d --build
+# ---------------------------------------------------------------------------
+
 services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: student-handbook-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER:     ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB:       ${POSTGRES_DB}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
+  # ── Neo4j ──────────────────────────────────────────────────────────────────
   neo4j:
-    image: neo4j:5
+    image: neo4j:5-community
     container_name: student-handbook-neo4j
+    restart: unless-stopped
     environment:
-      NEO4J_AUTH: ${NEO4J_USER}/${NEO4J_PASSWORD}
-      NEO4J_dbms_default__database: ${NEO4J_DB}
+      NEO4J_AUTH:                        ${NEO4J_USER}/${NEO4J_PASSWORD}
+      NEO4J_dbms_default__database:      ${NEO4J_DB}
+      NEO4J_dbms_memory_heap_initial__size: 256m
+      NEO4J_dbms_memory_heap_max__size:     512m
+      # Run the init cypher script on first boot via apoc or shell
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "7474:7474"   # Browser / HTTP
+      - "7687:7687"   # Bolt
     volumes:
       - neo4j_data:/data
-      - ./infra/neo4j/init.cypher:/init.cypher
+      - neo4j_logs:/logs
+      - ./infra/neo4j/init.cypher:/var/lib/neo4j/import/init.cypher:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
 
+  # ── Qdrant ─────────────────────────────────────────────────────────────────
   qdrant:
     image: qdrant/qdrant:latest
     container_name: student-handbook-qdrant
+    restart: unless-stopped
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC
     volumes:
       - qdrant_data:/qdrant/storage
-      - ./infra/qdrant/config.yaml:/qdrant/config/production.yaml
+      - ./infra/qdrant/config.yaml:/qdrant/config/production.yaml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # ── Backend (FastAPI) ──────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
     container_name: student-handbook-backend
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
       neo4j:
         condition: service_healthy
       qdrant:
-        condition: service_started
+        condition: service_healthy
     environment:
+      # ── Database ────────────────────────────────────────────────────────
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      NEO4J_URI: bolt://neo4j:7687
-      NEO4J_USER: ${NEO4J_USER}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-      NEO4J_DB: ${NEO4J_DB}
-      QDRANT_URL: http://qdrant:6333
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - ./data:/app/data
 
+      # ── Neo4j ───────────────────────────────────────────────────────────
+      NEO4J_URI:      bolt://neo4j:7687
+      NEO4J_USER:     ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      NEO4J_DB:       ${NEO4J_DB}
+
+      # ── Qdrant ──────────────────────────────────────────────────────────
+      QDRANT_URL:        http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-student_handbook}
+
+      # ── OpenAI ──────────────────────────────────────────────────────────
+      OPENAI_API_KEY:  ${OPENAI_API_KEY}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      LLM_MODEL:       ${LLM_MODEL:-gpt-4o-mini}
+
+      # ── Auth ────────────────────────────────────────────────────────────
+      JWT_SECRET_KEY:              ${JWT_SECRET_KEY}
+      ALGORITHM:                   ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+
+      # ── CORS ────────────────────────────────────────────────────────────
+      # nginx sits in front so the browser hits port 80; keep localhost:80
+      # as default and add any additional origins separated by commas.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80}
+
+      # ── Email (Resend) ───────────────────────────────────────────────────
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+
+      # ── RAG tuning ──────────────────────────────────────────────────────
+      CHUNK_SIZE:    ${CHUNK_SIZE:-500}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-100}
+      TOP_K_RESULTS: ${TOP_K_RESULTS:-3}
+    volumes:
+      - ./data:/app/data   # PDF / processed data directory
+    expose:
+      - "8000"
+
+  # ── Frontend (Next.js) ────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
     container_name: student-handbook-frontend
+    restart: unless-stopped
     depends_on:
       - backend
-    ports:
-      - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      # Requests from the browser go through nginx → /api/
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+      # Google OAuth client ID (public, safe to expose)
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+    expose:
+      - "3000"
 
+  # ── Nginx (reverse proxy) ─────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: student-handbook-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/api/health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# ── Named volumes ────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
   neo4j_data:
+  neo4j_logs:
   qdrant_data:
