@@ -3,7 +3,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'), env_file_encoding='utf-8', extra='ignore')
+    model_config = SettingsConfigDict(
+        env_file=os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            '.env'
+        ),
+        env_file_encoding='utf-8',
+        extra='ignore'
+    )
     CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 100
     
@@ -35,12 +42,29 @@ class Settings(BaseSettings):
     
     # Resend
     RESEND_API_KEY: str = ""
+
+    # CORS — comma-separated list of allowed origins.
+    # Example: "http://localhost:3000,https://myapp.example.com"
+    CORS_ORIGINS: str = "http://localhost:3000"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS_ORIGINS into a list, stripping whitespace."""
+        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
     
     @property
     def async_database_url(self) -> str:
         # asyncpg requires postgresql+asyncpg
         if self.DATABASE_URL.startswith("postgresql://"):
             return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return self.DATABASE_URL
+
+    @property
+    def psycopg_database_url(self) -> str:
+        """Connection string for psycopg3 (used by LangGraph AsyncPostgresSaver)."""
+        # psycopg3 uses the plain postgresql:// scheme
+        if self.DATABASE_URL.startswith("postgresql+asyncpg://"):
+            return self.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
         return self.DATABASE_URL
 
 settings = Settings()
