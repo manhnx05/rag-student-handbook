@@ -9,12 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files first for better layer caching
-COPY pyproject.toml requirements.txt ./
+# Copy dependency manifest and source for installation
+COPY pyproject.toml ./
+COPY src ./src
 
-# Install all dependencies into a dedicated prefix
+# Install all dependencies declared in pyproject.toml (including extras)
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir ".[dev]" 2>/dev/null || pip install --no-cache-dir .
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
