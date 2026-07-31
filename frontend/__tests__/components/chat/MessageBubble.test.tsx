@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { MessageBubble } from '@/components/chat/MessageBubble'
+import { MessageBubble } from '@/features/chat/components/MessageBubble'
 
 // Mock react-markdown because it uses ESM which Jest struggles with out-of-the-box
 jest.mock('react-markdown', () => (props: { children: string }) => <div data-testid="react-markdown">{props.children}</div>)

@@ -1,5 +1,5 @@
 import { render, screen, act } from '@testing-library/react'
-import { ChatSidebar } from '@/components/chat/ChatSidebar'
+import { ChatSidebar } from '@/features/chat/components/ChatSidebar'
 
 describe('ChatSidebar', () => {
   it('renders sidebar buttons', async () => {
