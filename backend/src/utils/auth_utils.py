@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from typing import Optional
@@ -17,9 +17,9 @@ def get_password_hash(password):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
@@ -44,7 +44,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user_id: str = payload.get("sub")
+    user_id: Optional[str] = payload.get("sub")
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return user_id
