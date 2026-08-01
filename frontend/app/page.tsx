@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Send, Menu, Plus, LogOut, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface ChatSession {
@@ -24,17 +26,75 @@ interface ChatMessage {
   content: string;
 }
 
+const ChatMessageItem = React.memo(({ msg }: { msg: ChatMessage }) => {
+  return (
+    <div
+      className={cn(
+        "flex gap-4 w-full",
+        msg.role === 'user' ? "justify-end" : "justify-start"
+      )}
+    >
+      {msg.role === 'ai' && (
+        <Avatar className="w-8 h-8 mt-1 shrink-0 bg-blue-600">
+          <AvatarFallback className="text-white">AI</AvatarFallback>
+        </Avatar>
+      )}
+      <div
+        className={cn(
+          "px-4 py-3 rounded-2xl max-w-[85%]",
+          msg.role === 'user'
+            ? "bg-blue-600 text-white rounded-tr-sm"
+            : "bg-white dark:bg-gray-800 shadow-sm border rounded-tl-sm text-gray-800 dark:text-gray-200"
+        )}
+      >
+        {msg.role === 'user' ? (
+          <p className="whitespace-pre-wrap">{msg.content}</p>
+        ) : (
+          <div className="prose prose-sm max-w-none dark:prose-invert">
+            {msg.content ? (
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            ) : (
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export default function ChatPage() {
   const { user, token, logout, loading } = useAuth();
   const router = useRouter();
 
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { data: sessions = [], refetch: refetchSessions } = useQuery<ChatSession[]>({
+    queryKey: ['sessions'],
+    queryFn: async () => {
+      const response = await api.get('/sessions');
+      return response.data;
+    },
+    enabled: !!token,
+  });
+
+  const { data: initialMessages = [] } = useQuery<ChatMessage[]>({
+    queryKey: ['messages', activeSessionId],
+    queryFn: async () => {
+      const response = await api.get(`/sessions/${activeSessionId}/messages`);
+      return response.data;
+    },
+    enabled: !!activeSessionId,
+  });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -43,18 +103,12 @@ export default function ChatPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (token) {
-      fetchSessions();
-    }
-  }, [token]);
-
-  useEffect(() => {
     if (activeSessionId) {
-      fetchMessages(activeSessionId);
+      setMessages(initialMessages);
     } else {
       setMessages([]);
     }
-  }, [activeSessionId]);
+  }, [initialMessages, activeSessionId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -62,23 +116,6 @@ export default function ChatPage() {
     }
   }, [messages, isTyping]);
 
-  const fetchSessions = async () => {
-    try {
-      const response = await api.get('/sessions');
-      setSessions(response.data);
-    } catch (err) {
-      console.error('Failed to fetch sessions', err);
-    }
-  };
-
-  const fetchMessages = async (sessionId: string) => {
-    try {
-      const response = await api.get(`/sessions/${sessionId}/messages`);
-      setMessages(response.data);
-    } catch (err) {
-      console.error('Failed to fetch messages', err);
-    }
-  };
 
   const handleNewChat = () => {
     setActiveSessionId(null);
@@ -118,8 +155,7 @@ export default function ChatPage() {
       const returnedSessionId = response.headers.get('X-Session-ID');
       if (returnedSessionId && returnedSessionId !== activeSessionId) {
         setActiveSessionId(returnedSessionId);
-        // We should also refresh sessions list to show the new chat
-        setTimeout(fetchSessions, 1000);
+        setTimeout(refetchSessions, 1000);
       }
 
       const reader = response.body?.getReader();
@@ -246,43 +282,7 @@ export default function ChatPage() {
           ) : (
             <div className="max-w-3xl mx-auto space-y-6">
               {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex gap-4 w-full",
-                    msg.role === 'user' ? "justify-end" : "justify-start"
-                  )}
-                >
-                  {msg.role === 'ai' && (
-                    <Avatar className="w-8 h-8 mt-1 shrink-0 bg-blue-600">
-                      <AvatarFallback className="text-white">AI</AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div
-                    className={cn(
-                      "px-4 py-3 rounded-2xl max-w-[85%]",
-                      msg.role === 'user'
-                        ? "bg-blue-600 text-white rounded-tr-sm"
-                        : "bg-white dark:bg-gray-800 shadow-sm border rounded-tl-sm text-gray-800 dark:text-gray-200"
-                    )}
-                  >
-                    {msg.role === 'user' ? (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    ) : (
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        {msg.content ? (
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
-                        ) : (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ChatMessageItem key={msg.id} msg={msg} />
               ))}
             </div>
           )}
