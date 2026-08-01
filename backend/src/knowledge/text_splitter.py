@@ -1,6 +1,7 @@
 import os
 from pypdf import PdfReader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_openai import OpenAIEmbeddings
 from src.core.config import settings
 
 
@@ -30,13 +31,10 @@ def process_pdf_to_chunks(pdf_path: str):
             })
     print(f"Successfully extracted {len(raw_documents)} pages.")
 
-    # Initialize token-based text splitter using gpt-4o tokenizer (cl100k_base)
-    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        model_name="gpt-4o",
-        chunk_size=settings.CHUNK_SIZE,
-        chunk_overlap=settings.CHUNK_OVERLAP,
-        separators=["\n\n", "\n", " ", ""]
-    )
+    # Initialize semantic text splitter using OpenAI Embeddings
+    print("Initializing Semantic Chunker...")
+    embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL)
+    text_splitter = SemanticChunker(embeddings, breakpoint_threshold_type="percentile")
 
     final_chunks = []
     print("Processing data chunking...")
