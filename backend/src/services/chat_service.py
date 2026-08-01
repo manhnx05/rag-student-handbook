@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Tuple
+from typing import List, Tuple, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc
@@ -11,7 +11,7 @@ class ChatService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_user_sessions(self, user_id: str) -> List[ChatSession]:
+    async def get_user_sessions(self, user_id: str) -> Sequence[ChatSession]:
         result = await self.db.execute(
             select(ChatSession)
             .where(ChatSession.user_id == user_id)
@@ -28,7 +28,7 @@ class ChatService:
         )
         return result.scalars().first()
 
-    async def get_session_messages(self, session_id: str) -> List[ChatMessage]:
+    async def get_session_messages(self, session_id: str) -> Sequence[ChatMessage]:
         result = await self.db.execute(
             select(ChatMessage)
             .where(ChatMessage.session_id == session_id)
@@ -38,7 +38,7 @@ class ChatService:
 
     async def get_session_history(self, session_id: str) -> List[Tuple[str, str]]:
         messages = await self.get_session_messages(session_id)
-        return [(m.role, m.content) for m in messages]
+        return [(str(m.role), str(m.content)) for m in messages]
 
     async def create_session(self, user_id: str, question: str) -> str:
         session_id = str(uuid.uuid4())
