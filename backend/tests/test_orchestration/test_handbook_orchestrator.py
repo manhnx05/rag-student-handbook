@@ -16,11 +16,11 @@ async def test_process_query(mocker):
         yield "response "
         yield "from agent"
         
-    mocker.patch.object(orchestrator, 'process_query_stream', side_effect=mock_stream)
+    mock_process = mocker.patch.object(orchestrator, 'process_query_stream', side_effect=mock_stream)
     
     response_chunks = []
     async for chunk in orchestrator.process_query_stream("What is the tuition fee?"):
         response_chunks.append(chunk)
         
     assert "".join(response_chunks) == "Mocked response from agent"
-    orchestrator.process_query_stream.assert_called_once_with("What is the tuition fee?")
+    mock_process.assert_called_once_with("What is the tuition fee?")
