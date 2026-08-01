@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Resend
     RESEND_API_KEY: str = ""
 
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379"
+
     # CORS — comma-separated list of allowed origins.
     # Example: "http://localhost:3000,https://myapp.example.com"
     CORS_ORIGINS: str = "http://localhost:3000"
