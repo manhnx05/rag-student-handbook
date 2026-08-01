@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 
 export const metadata = {
   title: 'Student Handbook',
@@ -20,9 +21,11 @@ export default function RootLayout({
   return (
     <html lang="vi" className={cn("font-sans", inter.variable)}>
       <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   )
