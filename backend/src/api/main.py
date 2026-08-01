@@ -1,12 +1,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from langchain.globals import set_llm_cache
+from langchain_community.cache import RedisSemanticCache
+from langchain_openai import OpenAIEmbeddings
 from src.api.routes import chat, health, ingest, auth
 from src.core.config import settings
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        print("Initializing Semantic Cache...")
+        embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL)
+        set_llm_cache(RedisSemanticCache(
+            redis_url=settings.REDIS_URL,
+            embedding=embeddings
+        ))
+    except Exception as e:
+        print(f"Failed to initialize Semantic Cache: {e}")
+    yield
 
 app = FastAPI(
     title="Student Handbook RAG API",
     description="API for the Student Handbook AI Assistant with Streaming capabilities",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS — origins are read from settings.CORS_ORIGINS so they can be
