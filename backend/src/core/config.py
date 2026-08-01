@@ -1,5 +1,5 @@
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 import os
 
 class Settings(BaseSettings):
@@ -15,40 +15,40 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP: int = 100
     
     # OpenAI
-    OPENAI_API_KEY: str = ""
+    OPENAI_API_KEY: str
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     LLM_MODEL: str = "gpt-4o-mini"
     
     # Postgres
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/student_handbook"
+    DATABASE_URL: str
     
     # Neo4j
-    NEO4J_URI: str = "bolt://localhost:7687"
-    NEO4J_USER: str = "neo4j"
-    NEO4J_PASSWORD: str = "password"
+    NEO4J_URI: str
+    NEO4J_USER: str
+    NEO4J_PASSWORD: str
     NEO4J_DB: str = "neo4j"
     
     # Qdrant
-    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_URL: str
     QDRANT_COLLECTION: str = "student_handbook"
     
     # Retrieval
     TOP_K_RESULTS: int = 3
     
     # Auth
-    JWT_SECRET_KEY: str = "super_secret_key_please_change_in_production"
+    JWT_SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
     
     # Resend
-    RESEND_API_KEY: str = ""
+    RESEND_API_KEY: Optional[str] = None
 
     # Redis
-    REDIS_URL: str = "redis://localhost:6379"
+    REDIS_URL: str
 
     # CORS — comma-separated list of allowed origins.
     # Example: "http://localhost:3000,https://myapp.example.com"
-    CORS_ORIGINS: str = "http://localhost:3000"
+    CORS_ORIGINS: str
 
     @property
     def cors_origins_list(self) -> list[str]:
