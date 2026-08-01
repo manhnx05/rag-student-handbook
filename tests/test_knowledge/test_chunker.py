@@ -1,7 +1,7 @@
 import os
 import tempfile
 from backend.src.knowledge.text_splitter import process_pdf_to_chunks
-from pypdf import PdfWriter
+from pypdf import PdfWriter  # type: ignore
 
 
 def create_test_pdf():
@@ -22,7 +22,7 @@ def create_test_pdf():
     c.drawString(100, 710, "Testing chunking functionality.")
     c.save()
     
-    from pypdf import PdfReader
+    from pypdf import PdfReader  # type: ignore
     reader = PdfReader(packet.name)
     page = reader.pages[0]
     writer.add_page(page)
