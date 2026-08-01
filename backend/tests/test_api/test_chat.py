@@ -15,7 +15,7 @@ class MockOrchestrator:
         self,
         query: str,
         session_id: str | None = None,
-        history: list = None,
+        history: list | None = None,
     ):
         yield "Xin chào! "
         yield f"Bạn hỏi về: {query}"
