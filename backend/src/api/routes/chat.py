@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import Optional, List
+from functools import lru_cache
 
 from src.orchestration.handbook_orchestrator import HandbookOrchestrator
 from src.core.db.database import get_db
@@ -11,6 +12,7 @@ from src.utils.auth_utils import get_current_user
 
 router = APIRouter()
 
+@lru_cache()
 def get_orchestrator():
     return HandbookOrchestrator()
 
