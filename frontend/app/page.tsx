@@ -11,6 +11,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Send, Menu, Plus, LogOut, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { motion } from 'framer-motion';
 import React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +31,10 @@ interface ChatMessage {
 
 const ChatMessageItem = React.memo(({ msg }: { msg: ChatMessage }) => {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
       className={cn(
         "flex gap-4 w-full",
         msg.role === 'user' ? "justify-end" : "justify-start"
@@ -52,18 +58,52 @@ const ChatMessageItem = React.memo(({ msg }: { msg: ChatMessage }) => {
         ) : (
           <div className="prose prose-sm max-w-none dark:prose-invert">
             {msg.content ? (
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  code({node, inline, className, children, ...props}: any) {
+                    const match = /language-(\w+)/.exec(className || '')
+                    return !inline && match ? (
+                      <SyntaxHighlighter
+                        {...props}
+                        style={vscDarkPlus as any}
+                        language={match[1]}
+                        PreTag="div"
+                      >
+                        {String(children).replace(/\n$/, '')}
+                      </SyntaxHighlighter>
+                    ) : (
+                      <code {...props} className={cn("bg-gray-100 dark:bg-gray-700 rounded px-1 py-0.5", className)}>
+                        {children}
+                      </code>
+                    )
+                  }
+                }}
+              >
+                {msg.content}
+              </ReactMarkdown>
             ) : (
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+              <span className="flex items-center gap-1 h-6">
+                <motion.span 
+                  animate={{ y: [0, -4, 0] }} 
+                  transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} 
+                  className="w-2 h-2 bg-gray-400 rounded-full"
+                />
+                <motion.span 
+                  animate={{ y: [0, -4, 0] }} 
+                  transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} 
+                  className="w-2 h-2 bg-gray-400 rounded-full"
+                />
+                <motion.span 
+                  animate={{ y: [0, -4, 0] }} 
+                  transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} 
+                  className="w-2 h-2 bg-gray-400 rounded-full"
+                />
               </span>
             )}
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 });
 
