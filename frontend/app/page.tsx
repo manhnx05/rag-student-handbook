@@ -138,7 +138,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [user, loading, router]);
 
@@ -229,8 +229,12 @@ export default function ChatPage() {
     }
   };
 
-  if (loading || !user) {
+  if (loading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
