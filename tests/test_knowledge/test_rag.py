@@ -1,67 +1,61 @@
-import os
-import tempfile
+import pytest
+import uuid
+from unittest.mock import patch, MagicMock
 from backend.src.memory.vector_store import VectorStore
 
-
-def test_vector_store():
-    # Use a temporary directory for testing
-    temp_dir = tempfile.mkdtemp()
-    original_path = os.environ.get("CHROMA_DB_PATH")
-    os.environ["CHROMA_DB_PATH"] = temp_dir
-    
-    try:
-        # Reset settings to use temp dir
-        from importlib import reload
-        import backend.src.core.config
-        reload(backend.src.core.config)
-        from backend.src.core.config import settings
-        settings.CHROMA_DB_PATH = temp_dir
-        settings.CHROMA_COLLECTION_NAME = "test_collection"
+@pytest.fixture
+def mock_qdrant_client():
+    with patch('backend.src.memory.vector_store.QdrantClient') as mock_client:
+        mock_instance = mock_client.return_value
+        # Setup mock behavior
+        mock_count_result = MagicMock()
+        mock_count_result.count = 2
+        mock_instance.count.return_value = mock_count_result
         
-        # Reload vector store module
-        import backend.src.memory.vector_store
-        reload(backend.src.memory.vector_store)
-        from backend.src.memory.vector_store import VectorStore, get_vector_store
-        
-        # Test 1: Create vector store
-        vs = VectorStore()
-        assert vs.count() == 0, "New collection should be empty"
-        
-        # Test 2: Add chunks
-        test_chunks = [
-            {
-                "id": "chunk1",
-                "content": "This is the first test chunk about programming.",
-                "metadata": {"source": "test1.pdf", "page": 1}
-            },
-            {
-                "id": "chunk2",
-                "content": "This is the second test chunk about data science.",
-                "metadata": {"source": "test2.pdf", "page": 2}
-            }
+        mock_instance.search.return_value = [
+            MagicMock(id=str(uuid.uuid4()), score=0.9, payload={"content": "programming test", "source": "test1.pdf", "page": 1}),
         ]
-        vs.add_chunks(test_chunks)
-        assert vs.count() == 2, "Should have 2 chunks"
-        
-        # Test 3: Query
-        results = vs.query("programming", top_k=1)
-        assert len(results["documents"][0]) == 1, "Should return 1 result"
-        assert "programming" in results["documents"][0][0], "Result should contain 'programming'"
-        
-        # Test 4: Clear collection
-        vs.clear_collection()
-        assert vs.count() == 0, "Collection should be empty after clearing"
-        
-        print("test_vector_store passed!")
-    finally:
-        # Cleanup
-        if original_path:
-            os.environ["CHROMA_DB_PATH"] = original_path
-        else:
-            os.environ.pop("CHROMA_DB_PATH", None)
-        import shutil
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        yield mock_instance
 
+@patch('backend.src.memory.vector_store.embed_texts')
+@patch('backend.src.memory.vector_store.embed_text')
+def test_vector_store(mock_embed_text, mock_embed_texts, mock_qdrant_client):
+    # Setup embedding mocks
+    mock_embed_texts.return_value = [[0.1]*1536, [0.2]*1536]
+    mock_embed_text.return_value = [0.1]*1536
+    
+    vs = VectorStore()
+    
+    # Test: Collection Initialization
+    mock_qdrant_client.get_collection.assert_called_once()
+    
+    # Test: Add chunks
+    test_chunks = [
+        {
+            "id": str(uuid.uuid4()),
+            "content": "This is the first test chunk about programming.",
+            "metadata": {"source": "test1.pdf", "page": 1}
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "content": "This is the second test chunk about data science.",
+            "metadata": {"source": "test2.pdf", "page": 2}
+        }
+    ]
+    vs.add_chunks(test_chunks)
+    mock_qdrant_client.upsert.assert_called_once()
+    
+    # Test: Query
+    results = vs.query("programming", top_k=1)
+    assert len(results["documents"][0]) == 1, "Should return 1 result"
+    assert "programming" in results["documents"][0][0], "Result should contain 'programming'"
+    
+    # Test: Clear collection
+    vs.clear_collection()
+    mock_qdrant_client.delete_collection.assert_called_once()
+    
+    # Test: Count
+    assert vs.count() == 2
 
 if __name__ == "__main__":
-    test_vector_store()
+    pytest.main([__file__])
