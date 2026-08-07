@@ -41,7 +41,7 @@ def _format_graph_results(graph_results: list) -> str:
     return "\n".join(lines)
 
 
-def hybrid_search(query: str, top_k: int | None = None) -> str:
+async def hybrid_search(query: str, top_k: int | None = None) -> str:
     """
     Perform hybrid retrieval combining Qdrant and Neo4j.
 
@@ -65,8 +65,8 @@ def hybrid_search(query: str, top_k: int | None = None) -> str:
     # ── 2. Graph search (Neo4j) ──────────────────────────────────────────────
     graph_context = ""
     try:
-        graph_store = get_graph_store()
-        graph_results = graph_store.query_graph(query, top_k=top_k)
+        graph_store = await get_graph_store()
+        graph_results = await graph_store.query_graph(query, top_k=top_k)
         graph_context = _format_graph_results(graph_results)
     except Exception as exc:
         logger.warning("Graph search failed: %s", exc)
