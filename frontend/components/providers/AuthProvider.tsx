@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { useRouter } from 'next/navigation';
 
 interface User {
   id: string;
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -52,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
-    window.location.href = '/login';
+    router.replace('/login');
   };
 
   // Replace with your actual Google Client ID from .env
