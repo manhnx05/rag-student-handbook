@@ -43,41 +43,41 @@ import inspect
 # ===========================================================================
 class TestUserModel:
     def test_is_admin_column_exists(self):
-        from src.core.db.models import User
+        from src.db.models import User
         assert hasattr(User, "is_admin"), "User model missing is_admin attribute"
 
     def test_is_admin_defaults_to_false_python_level(self):
-        from src.core.db.models import User
+        from src.db.models import User
         user = User(email="test@example.com")
         assert user.is_admin is False, f"Expected False, got {user.is_admin!r}"
 
     def test_is_admin_can_be_set_true(self):
-        from src.core.db.models import User
+        from src.db.models import User
         admin = User(email="admin@example.com", is_admin=True)
         assert admin.is_admin is True
 
     def test_is_google_login_defaults_to_false(self):
-        from src.core.db.models import User
+        from src.db.models import User
         user = User(email="user@example.com")
         assert user.is_google_login is False
 
     def test_created_at_is_timezone_aware(self):
         import sqlalchemy
-        from src.core.db.models import User
+        from src.db.models import User
         col = User.__table__.columns["created_at"]
         assert isinstance(col.type, sqlalchemy.DateTime)
         assert col.type.timezone is True, "created_at must be timezone-aware"
 
     def test_chat_session_dates_are_timezone_aware(self):
         import sqlalchemy
-        from src.core.db.models import ChatSession
+        from src.db.models import ChatSession
         for col_name in ("created_at", "updated_at"):
             col = ChatSession.__table__.columns[col_name]
             assert col.type.timezone is True, f"ChatSession.{col_name} must be timezone-aware"
 
     def test_chat_message_created_at_is_timezone_aware(self):
         import sqlalchemy
-        from src.core.db.models import ChatMessage
+        from src.db.models import ChatMessage
         col = ChatMessage.__table__.columns["created_at"]
         assert col.type.timezone is True
 
