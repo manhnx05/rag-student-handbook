@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 load_dotenv()
 
-from src.core.db.models import Base
+from src.db.models import Base
 from src.core.config import settings
 
 # add your model's MetaData object here
