@@ -1,30 +1,21 @@
 import os
 import logging
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 
 from src.services.ingest_service import IngestionService
 from src.utils.auth_utils import get_current_admin_user
+from src.worker import process_pdf_ingestion_task
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-async def _background_ingest(file_path: str) -> None:
-    """Background task: run the full ingestion pipeline for one PDF."""
-    try:
-        chunks_count = await IngestionService.process_pdf_ingestion(
-            file_path, clear_existing=False
-        )
-        logger.info("Ingestion completed for %s — %d chunks indexed", file_path, chunks_count)
-    except Exception as exc:
-        logger.error("Error in background ingestion for %s: %s", file_path, exc)
 
 
 @router.post("/ingest", summary="Ingest a PDF into the knowledge base (admin only)")
 async def ingest_documents(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     # Require a valid JWT AND admin flag — 401/403 otherwise
     _admin_id: str = Depends(get_current_admin_user),
@@ -44,10 +35,10 @@ async def ingest_documents(
 
     try:
         IngestionService.save_upload_file(file, file_path)
-        background_tasks.add_task(_background_ingest, file_path)
+        process_pdf_ingestion_task.delay(file_path)
 
         return {
-            "message": "Document ingestion started in background",
+            "message": "Document ingestion started in background via Celery",
             "filename": file.filename,
         }
     except Exception as exc:
