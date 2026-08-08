@@ -76,10 +76,11 @@ def _ast_has_traceback_print_exc(source: str) -> bool:
 # ===========================================================================
 class TestDeadCodeRemoval:
     def test_state_manager_deleted(self):
-        spec = importlib.util.find_spec("src.orchestration.state_manager")
-        assert spec is None, (
-            "state_manager.py should be deleted — it is dead code with no callers"
-        )
+        try:
+            spec = importlib.util.find_spec("src.orchestration.state_manager")
+            assert spec is None
+        except ModuleNotFoundError:
+            pass # Parent module deleted, which is also fine
 
     def test_state_manager_file_not_on_disk(self):
         path = BACKEND / "src" / "orchestration" / "state_manager.py"
