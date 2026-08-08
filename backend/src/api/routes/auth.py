@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from src.core.db.database import get_db
+from src.db.database import get_db
 from src.services.auth_service import AuthService
 
 router = APIRouter()
@@ -10,23 +10,13 @@ router = APIRouter()
 def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
     return AuthService(db)
 
-class RegisterRequest(BaseModel):
-    email: str
-    password: str
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-class GoogleAuthRequest(BaseModel):
-    credential: str
-
-class ForgotPasswordRequest(BaseModel):
-    email: str
-
-class ResetPasswordRequest(BaseModel):
-    token: str
-    new_password: str
+from src.schemas.auth import (
+    RegisterRequest,
+    LoginRequest,
+    GoogleAuthRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest
+)
 
 @router.post("/register")
 async def register(req: RegisterRequest, auth_service: AuthService = Depends(get_auth_service)):
