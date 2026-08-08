@@ -180,7 +180,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, { id: aiMessageId, role: 'ai', content: '' }]);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       const response = await fetch(`${apiUrl}/chat`, {
         method: 'POST',
         headers: {
