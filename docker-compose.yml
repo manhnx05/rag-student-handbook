@@ -53,8 +53,8 @@ services:
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
     ports:
-      - "7474:7474"   # Browser / HTTP
-      - "7687:7687"   # Bolt
+      - "7475:7474"   # Browser / HTTP (host:container)
+      - "7688:7687"   # Bolt (host:container)
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
@@ -72,8 +72,8 @@ services:
     container_name: student-handbook-qdrant
     restart: unless-stopped
     ports:
-      - "6333:6333"   # REST API
-      - "6334:6334"   # gRPC
+      - "6335:6333"   # REST API (host:container)
+      - "6336:6334"   # gRPC (host:container)
     volumes:
       - qdrant_data:/qdrant/storage
       - ./infra/qdrant/config.yaml:/qdrant/config/production.yaml:ro
@@ -196,7 +196,7 @@ services:
       - backend
       - frontend
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     healthcheck:
