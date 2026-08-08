@@ -17,8 +17,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.db.database import get_db
-from src.orchestration.handbook_orchestrator import HandbookOrchestrator
+from src.db.database import get_db
+from src.services.handbook_orchestrator import HandbookOrchestrator
 from src.services.chat_service import ChatService
 from src.utils.auth_utils import get_current_user
 
@@ -44,22 +44,7 @@ def get_chat_service(db: AsyncSession = Depends(get_db)) -> ChatService:
 # Request / response schemas
 # ---------------------------------------------------------------------------
 
-class ChatRequest(BaseModel):
-    question: str
-    session_id: Optional[str] = None
-
-
-class SessionResponse(BaseModel):
-    id: str
-    title: str
-    created_at: str
-
-
-class MessageResponse(BaseModel):
-    id: str
-    role: str
-    content: str
-    created_at: str
+from src.schemas.chat import ChatRequest, SessionResponse, MessageResponse
 
 
 # ---------------------------------------------------------------------------
@@ -109,16 +94,17 @@ async def _stream_and_save(
     session_id: str,
     chat_service: ChatService,
     orchestrator: HandbookOrchestrator,
-    history: List[tuple],
 ):
     """Async generator: stream AI response chunks and persist the full reply."""
     full_response = ""
-    async for chunk in orchestrator.process_query_stream(query, session_id, history):
-        full_response += chunk
-        yield chunk
-
-    # Persist the complete response after the stream finishes
-    await chat_service.save_message(session_id, "ai", full_response)
+    try:
+        async for chunk in orchestrator.process_query_stream(query, session_id):
+            full_response += chunk
+            yield chunk
+    finally:
+        # Persist the complete response even if the stream finishes early or aborts
+        if full_response.strip():
+            await chat_service.save_message(session_id, "ai", full_response)
 
 
 @router.post("/chat")
@@ -143,12 +129,11 @@ async def chat_endpoint(
             if not session:
                 raise HTTPException(status_code=404, detail="Session not found")
 
-        history = await chat_service.get_session_history(session_id)
         await chat_service.save_message(session_id, "user", request.question)
 
         return StreamingResponse(
             _stream_and_save(
-                request.question, session_id, chat_service, orchestrator, history
+                request.question, session_id, chat_service, orchestrator
             ),
             media_type="text/plain",
             headers={"X-Session-ID": session_id},
