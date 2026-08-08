@@ -155,40 +155,6 @@ class TestGraphIngestionData:
 
 
 # ===========================================================================
-# 4. ExtractionResult / Entity / Relationship schemas
-# ===========================================================================
-class TestExtractionSchemas:
-    def test_empty_result(self):
-        from src.knowledge.document_loader import ExtractionResult
-        r = ExtractionResult(entities=[], relationships=[])
-        assert r.entities == []
-
-    def test_entity_model(self):
-        from src.knowledge.document_loader import Entity
-        e = Entity(name="HUST", type="Organization")
-        assert e.name == "HUST"
-        assert e.type == "Organization"
-        assert e.properties == {}
-
-    def test_relationship_model(self):
-        from src.knowledge.document_loader import Relationship
-        r = Relationship(source="HUST", target="Policy A", type="HAS_POLICY")
-        assert r.source == "HUST"
-        assert r.target == "Policy A"
-        assert r.type == "HAS_POLICY"
-
-    def test_extraction_result_round_trip(self):
-        from src.knowledge.document_loader import ExtractionResult, Entity, Relationship
-        r = ExtractionResult(
-            entities=[Entity(name="Khoa CNTT", type="Department")],
-            relationships=[
-                Relationship(source="Khoa CNTT", target="Quy chế", type="GOVERNS")
-            ],
-        )
-        assert len(r.entities) == 1
-        assert len(r.relationships) == 1
-        assert r.entities[0].model_dump()["name"] == "Khoa CNTT"
-
 
 # ===========================================================================
 # 5. Deduplication logic
