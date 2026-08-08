@@ -17,56 +17,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field, SecretStr
+from langchain_experimental.graph_transformers import LLMGraphTransformer
+from pydantic import SecretStr
 
 from src.core.config import settings
 from src.core.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Pydantic schemas for LLM-structured output
-# ---------------------------------------------------------------------------
-
-class Entity(BaseModel):
-    name: str = Field(description="The name of the entity")
-    type: str = Field(
-        description=(
-            "The type of the entity. Must be one of: "
-            "Person, Organization, Department, Topic, Rule, Policy, Document, Process, Entity"
-        )
-    )
-    properties: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional properties of the entity",
-    )
-
-
-class Relationship(BaseModel):
-    source: str = Field(description="The name of the source entity")
-    target: str = Field(description="The name of the target entity")
-    type: str = Field(
-        description=(
-            "The relationship type (uppercase, underscores only). "
-            "Must be one of: HAS_POLICY, BELONGS_TO, DEFINES, RELATED_TO, "
-            "GOVERNS, REQUIRES, IMPLEMENTS"
-        )
-    )
-    properties: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional properties of the relationship",
-    )
-
-
-class ExtractionResult(BaseModel):
-    entities: List[Entity] = Field(description="List of extracted entities")
-    relationships: List[Relationship] = Field(
-        description="List of extracted relationships"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -87,68 +46,24 @@ class GraphIngestionData:
         return self.chunks_processed + self.chunks_failed
 
 
-# ---------------------------------------------------------------------------
-# LLM extraction helpers
-# ---------------------------------------------------------------------------
+def extract_from_chunks(chunks: List[Dict[str, Any]]) -> GraphIngestionData:
+    """Extract entities and relationships from a list of chunks using LLMGraphTransformer."""
+    result = GraphIngestionData()
+    all_entities: List[Dict[str, Any]] = []
+    all_relationships: List[Dict[str, Any]] = []
 
-_SYSTEM_PROMPT = """\
-You are an expert at extracting entities and relationships from Vietnamese and English academic text.
-Extract all relevant entities and relationships from the given text.
-
-Entity types: Person, Organization, Department, Topic, Rule, Policy, Document, Process, Entity.
-Relationship types (uppercase): HAS_POLICY, BELONGS_TO, DEFINES, RELATED_TO, GOVERNS, REQUIRES, IMPLEMENTS.
-
-Return ONLY valid JSON matching the schema — no markdown, no explanation.
-"""
-
-_HUMAN_PROMPT = "{text}"
-
-
-def _build_chain():
-    """Build the LLM extraction chain (created once per call to keep it stateless)."""
     llm = ChatOpenAI(
         model=settings.LLM_MODEL,
         temperature=0,
         api_key=SecretStr(settings.OPENAI_API_KEY),
     )
-    prompt = ChatPromptTemplate.from_messages(
-        [("system", _SYSTEM_PROMPT), ("human", _HUMAN_PROMPT)]
+    llm_transformer = LLMGraphTransformer(
+        llm=llm,
+        allowed_nodes=["Person", "Organization", "Department", "Topic", "Rule", "Policy", "Document", "Process", "Entity"],
+        allowed_relationships=["HAS_POLICY", "BELONGS_TO", "DEFINES", "RELATED_TO", "GOVERNS", "REQUIRES", "IMPLEMENTS"]
     )
-    parser = JsonOutputParser(pydantic_object=ExtractionResult)
-    return prompt | llm | parser
 
-
-def extract_entities_and_relationships(text: str) -> ExtractionResult:
-    """Extract entities and relationships from a single text block.
-
-    Returns an empty ExtractionResult on failure (never raises).
-    """
-    chain = _build_chain()
-    try:
-        raw = chain.invoke({"text": text})
-        return ExtractionResult(**raw)
-    except Exception as exc:
-        logger.warning("Entity extraction failed: %s", exc)
-        return ExtractionResult(entities=[], relationships=[])
-
-
-def extract_from_chunks(chunks: List[Dict[str, Any]]) -> GraphIngestionData:
-    """Extract entities and relationships from a list of chunks.
-
-    Processes each chunk independently so a single failure does not abort the
-    whole run.  Results are deduplicated before being returned.
-
-    Args:
-        chunks: List of chunk dicts with at minimum a 'content' and 'id' key.
-
-    Returns:
-        GraphIngestionData with deduplicated entities and relationships.
-    """
-    result = GraphIngestionData()
-
-    all_entities: List[Dict[str, Any]] = []
-    all_relationships: List[Dict[str, Any]] = []
-
+    docs = []
     total = len(chunks)
     for i, chunk in enumerate(chunks):
         content = chunk.get("content", "").strip()
@@ -158,23 +73,36 @@ def extract_from_chunks(chunks: List[Dict[str, Any]]) -> GraphIngestionData:
             logger.debug("Skipping empty chunk %s", chunk_id)
             result.chunks_failed += 1
             continue
+        
+        docs.append(Document(page_content=content, metadata={"source_chunk": chunk_id}))
 
-        logger.debug("Extracting entities from chunk %d/%d (%s)…", i + 1, total, chunk_id)
-
-        extraction = extract_entities_and_relationships(content)
-
-        # Attach source_chunk provenance to each extracted item
-        for entity in extraction.entities:
-            entity_dict = entity.model_dump()
-            entity_dict["properties"].setdefault("source_chunk", chunk_id)
-            all_entities.append(entity_dict)
-
-        for rel in extraction.relationships:
-            rel_dict = rel.model_dump()
-            rel_dict["properties"].setdefault("source_chunk", chunk_id)
-            all_relationships.append(rel_dict)
-
-        result.chunks_processed += 1
+    if docs:
+        logger.debug("Running LLMGraphTransformer on %d documents...", len(docs))
+        try:
+            graph_documents = llm_transformer.convert_to_graph_documents(docs)
+            result.chunks_processed += len(docs)
+            
+            for g_doc in graph_documents:
+                source_chunk = g_doc.source.metadata.get("source_chunk", "")
+                
+                for node in g_doc.nodes:
+                    all_entities.append({
+                        "name": node.id,
+                        "type": node.type,
+                        "properties": {"source_chunk": source_chunk}
+                    })
+                    
+                for rel in g_doc.relationships:
+                    all_relationships.append({
+                        "source": rel.source.id,
+                        "target": rel.target.id,
+                        "type": rel.type,
+                        "properties": {"source_chunk": source_chunk}
+                    })
+                    
+        except Exception as exc:
+            logger.warning("Graph extraction failed: %s", exc)
+            result.chunks_failed += len(docs)
 
     # ── Deduplicate ──────────────────────────────────────────────────────────
     seen_entities: set[tuple] = set()
