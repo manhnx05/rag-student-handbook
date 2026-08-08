@@ -15,7 +15,7 @@ from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.core.db.models import ChatMessage, ChatSession
+from src.db.models import ChatMessage, ChatSession
 
 # Maximum characters kept for the auto-generated session title
 SESSION_TITLE_MAX_LEN = 60
