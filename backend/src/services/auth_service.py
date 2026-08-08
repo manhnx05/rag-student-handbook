@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
-from src.core.db.models import User
+from src.db.models import User
 from src.utils.auth_utils import (
     get_password_hash,
     verify_password,
