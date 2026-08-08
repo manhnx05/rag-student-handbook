@@ -56,6 +56,7 @@ async def _get_executor():
             conninfo=settings.psycopg_database_url,
             min_size=1,
             max_size=10,
+            kwargs={"autocommit": True},
             open=False,
         )
         await _pool.open()
