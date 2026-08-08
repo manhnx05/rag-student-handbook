@@ -14,7 +14,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
 
 from src.agents.base_agent import BaseAgent
-from src.models.llm_factory import LLMFactory
+from src.llms.llm_factory import LLMFactory
 from src.tools.handbook_search_tool import handbook_search_tool
 from src.core.config import settings
 from src.core.logger import get_logger
