@@ -60,8 +60,8 @@ async def get_current_admin_user(
     Returns the user_id of the authenticated admin.
     Raises 401 if token is invalid, 403 if user is not an admin.
     """
-    from src.core.db.database import AsyncSessionLocal
-    from src.core.db.models import User
+    from src.db.database import AsyncSessionLocal
+    from src.db.models import User
 
     payload = decode_access_token(token)
     if payload is None:
