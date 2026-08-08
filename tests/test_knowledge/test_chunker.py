@@ -1,6 +1,6 @@
 import os
 import tempfile
-from backend.src.knowledge.text_splitter import process_pdf_to_chunks
+from src.knowledge.text_splitter import process_pdf_to_chunks
 from pypdf import PdfWriter  # type: ignore
 
 
@@ -52,7 +52,6 @@ def test_process_pdf_to_chunks():
     finally:
         import shutil
         shutil.rmtree(temp_dir)
-        os.unlink(pdf_path)
 
 
 if __name__ == "__main__":
