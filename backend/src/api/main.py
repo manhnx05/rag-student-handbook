@@ -2,19 +2,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from langchain_core.globals import set_llm_cache
-from langchain_community.cache import RedisCache
+from langchain_community.cache import RedisSemanticCache
+from langchain_openai import OpenAIEmbeddings
 import redis
 from src.api.routes import chat, health, ingest, auth
 from src.core.config import settings
+from src.db.database import setup_db, close_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_db()
     try:
-        print("Initializing Redis Cache...")
-        set_llm_cache(RedisCache(redis.Redis.from_url(settings.REDIS_URL)))
+        print("Initializing Redis Semantic Cache...")
+        embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL)
+        set_llm_cache(RedisSemanticCache(redis_url=settings.REDIS_URL, embedding=embeddings))
     except Exception as e:
         print(f"Failed to initialize Semantic Cache: {e}")
     yield
+    await close_db()
 
 app = FastAPI(
     title="Student Handbook RAG API",
