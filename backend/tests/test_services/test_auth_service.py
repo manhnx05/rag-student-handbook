@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi import HTTPException
 from src.services.auth_service import AuthService
-from src.core.db.models import User
+from src.db.models import User
 
 @pytest.fixture
 def mock_db():
