@@ -5,7 +5,7 @@ from httpx import AsyncClient, ASGITransport
 from src.api.main import app
 from src.api.routes.chat import get_orchestrator
 from src.utils.auth_utils import get_current_user
-from src.core.db.database import get_db
+from src.db.database import get_db
 
 
 # ── Mock helpers ─────────────────────────────────────────────────────────────
