@@ -1,7 +1,7 @@
 import os
-from pypdf import PdfReader
+import fitz  # PyMuPDF
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from src.core.config import settings
 
 
@@ -14,13 +14,13 @@ def process_pdf_to_chunks(pdf_path: str):
 
     # Extract text from PDF along with page number metadata
     from typing import Any
-    reader = PdfReader(pdf_path)
     raw_documents: list[dict[str, Any]] = []
     file_name = os.path.basename(pdf_path)
 
     print(f"Reading document: {file_name}...")
-    for page_idx, page in enumerate(reader.pages):
-        text = page.extract_text()
+    doc = fitz.open(pdf_path)
+    for page_idx, page in enumerate(doc):
+        text = page.get_text()
         if text and text.strip():  # Skip blank pages
             raw_documents.append({
                 "text": text,
@@ -29,11 +29,12 @@ def process_pdf_to_chunks(pdf_path: str):
                     "page": page_idx + 1
                 }
             })
+    doc.close()
     print(f"Successfully extracted {len(raw_documents)} pages.")
 
-    # Initialize semantic text splitter using OpenAI Embeddings
+    # Initialize semantic text splitter using HuggingFace Embeddings
     print("Initializing Semantic Chunker...")
-    embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     text_splitter = SemanticChunker(embeddings, breakpoint_threshold_type="percentile")
 
     final_chunks = []
