@@ -459,7 +459,7 @@ class TestIngestRoutes:
 
         with (
             patch("src.api.routes.ingest.IngestionService.save_upload_file"),
-            patch("src.api.routes.ingest._background_ingest"),
+            patch("src.api.routes.ingest.process_pdf_ingestion_task.delay"),
         ):
             resp = self.client.post(
                 "/api/ingest",
@@ -470,7 +470,7 @@ class TestIngestRoutes:
         assert resp.status_code == 200
         data = resp.json()
         assert data["filename"] == "handbook.pdf"
-        assert "background" in data["message"].lower()
+        assert "celery" in data["message"].lower()
         self._clear_overrides()
 
     def test_ingest_file_save_error_returns_500(self):
