@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     
     # Retrieval
     TOP_K_RESULTS: int = 3
+
+    # Graph ingestion — set False to skip Neo4j extraction during PDF ingest
+    # (useful when Neo4j is unavailable or during initial setup)
+    GRAPH_INGESTION_ENABLED: bool = True
     
     # Auth
     JWT_SECRET_KEY: str
@@ -42,6 +46,10 @@ class Settings(BaseSettings):
     
     # Resend
     RESEND_API_KEY: Optional[str] = None
+
+    # Frontend URL — used for building password-reset links in emails.
+    # Override in production to your actual domain.
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # Redis
     REDIS_URL: str
