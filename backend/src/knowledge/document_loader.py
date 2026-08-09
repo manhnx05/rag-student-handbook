@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 Document Loader — LLM-based entity & relationship extraction from text chunks.
 
@@ -18,10 +19,9 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 from langchain_core.documents import Document
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_experimental.graph_transformers import LLMGraphTransformer
 from pydantic import SecretStr
-
 from src.core.config import settings
 from src.core.logger import get_logger
 
@@ -52,16 +52,15 @@ def extract_from_chunks(chunks: List[Dict[str, Any]]) -> GraphIngestionData:
     all_entities: List[Dict[str, Any]] = []
     all_relationships: List[Dict[str, Any]] = []
 
-    llm = ChatOpenAI(
+    llm = ChatGoogleGenerativeAI(
         model=settings.LLM_MODEL,
         temperature=0,
-        api_key=SecretStr(settings.OPENAI_API_KEY),
+        google_api_key=SecretStr(settings.GEMINI_API_KEY)
     )
     llm_transformer = LLMGraphTransformer(
         llm=llm,
         allowed_nodes=["Person", "Organization", "Department", "Topic", "Rule", "Policy", "Document", "Process", "Entity"],
         allowed_relationships=["HAS_POLICY", "BELONGS_TO", "DEFINES", "RELATED_TO", "GOVERNS", "REQUIRES", "IMPLEMENTS"]
-    )
 
     docs = []
     total = len(chunks)

@@ -1,11 +1,11 @@
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from src.core.config import settings
 
 class LLMFactory:
     @staticmethod
     def get_llm():
-        return ChatOpenAI(
+        return ChatGoogleGenerativeAI(
             model=settings.LLM_MODEL,
             temperature=0,
-            openai_api_key=settings.OPENAI_API_KEY
+            google_api_key=settings.GEMINI_API_KEY
         )

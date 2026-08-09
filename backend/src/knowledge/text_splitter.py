@@ -1,7 +1,7 @@
 import os
 import fitz  # PyMuPDF
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from src.core.config import settings
 
 
@@ -32,9 +32,9 @@ def process_pdf_to_chunks(pdf_path: str):
     doc.close()
     print(f"Successfully extracted {len(raw_documents)} pages.")
 
-    # Initialize semantic text splitter using HuggingFace Embeddings
+    # Initialize semantic text splitter using Gemini Embeddings
     print("Initializing Semantic Chunker...")
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    embeddings = GoogleGenerativeAIEmbeddings(model=settings.EMBEDDING_MODEL, google_api_key=settings.GEMINI_API_KEY)
     text_splitter = SemanticChunker(embeddings, breakpoint_threshold_type="percentile")
 
     final_chunks = []

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from langchain_core.globals import set_llm_cache
 from langchain_community.cache import RedisSemanticCache
-from langchain_openai import OpenAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import redis
 from src.api.routes import chat, health, ingest, auth
 from src.core.config import settings
@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
     setup_db()
     try:
         print("Initializing Redis Semantic Cache...")
-        embeddings = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL)
+        embeddings = GoogleGenerativeAIEmbeddings(model=settings.EMBEDDING_MODEL, google_api_key=settings.GEMINI_API_KEY)
         set_llm_cache(RedisSemanticCache(redis_url=settings.REDIS_URL, embedding=embeddings))
     except Exception as e:
         print(f"Failed to initialize Semantic Cache: {e}")
