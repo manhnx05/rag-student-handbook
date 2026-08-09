@@ -9,7 +9,7 @@ Why PostgreSQL instead of in-memory MemorySaver:
 """
 import asyncio
 
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
 
@@ -56,7 +56,6 @@ async def _get_executor():
             conninfo=settings.psycopg_database_url,
             min_size=1,
             max_size=10,
-            kwargs={"autocommit": True},
             open=False,
             kwargs={"autocommit": True}
         )
@@ -66,7 +65,7 @@ async def _get_executor():
         await checkpointer.setup()   # creates checkpoint tables if they don't exist
 
         llm = LLMFactory.get_llm()
-        _executor = create_react_agent(
+        _executor = create_agent(
             llm,
             tools=[handbook_search_tool],
             prompt=SYSTEM_PROMPT,
