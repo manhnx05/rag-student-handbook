@@ -14,10 +14,10 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 100
     
-    # OpenAI
-    OPENAI_API_KEY: str
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
-    LLM_MODEL: str = "gpt-4o-mini"
+    # Gemini
+    GEMINI_API_KEY: str
+    EMBEDDING_MODEL: str = "models/embedding-001"
+    LLM_MODEL: str = "gemini-1.5-flash"
     
     # Postgres
     DATABASE_URL: str

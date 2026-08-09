@@ -4,7 +4,7 @@ version = "0.2.0"
 requires-python = ">=3.12"
 dependencies = [
     "langchain-text-splitters>=1.1.2",
-    "langchain-openai>=0.3.2",
+    "langchain-google-genai>=2.0.7",
     "langchain-neo4j>=0.2.0",
     "langchain>=0.3.0",
     "langchain-experimental>=0.3.2",

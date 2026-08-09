@@ -86,7 +86,7 @@ services:
 
   # ── Redis (Cache) ──────────────────────────────────────────────────────────
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:latest
     container_name: student-handbook-redis
     restart: unless-stopped
     ports:
@@ -129,10 +129,10 @@ services:
       QDRANT_URL:        http://qdrant:6333
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-student_handbook}
 
-      # ── OpenAI ──────────────────────────────────────────────────────────
-      OPENAI_API_KEY:  ${OPENAI_API_KEY}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
-      LLM_MODEL:       ${LLM_MODEL:-gpt-4o-mini}
+      # ── Gemini ──────────────────────────────────────────────────────────
+      GEMINI_API_KEY:  ${GEMINI_API_KEY}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-models/embedding-001}
+      LLM_MODEL:       ${LLM_MODEL:-gemini-1.5-flash}
 
       # ── Redis ───────────────────────────────────────────────────────────
       REDIS_URL:       redis://redis:6379
@@ -198,6 +198,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
     container_name: student-handbook-frontend
     restart: unless-stopped
     depends_on:
