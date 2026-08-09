@@ -58,6 +58,7 @@ async def _get_executor():
             max_size=10,
             kwargs={"autocommit": True},
             open=False,
+            kwargs={"autocommit": True}
         )
         await _pool.open()
 
