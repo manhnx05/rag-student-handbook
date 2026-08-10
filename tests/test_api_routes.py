@@ -398,6 +398,31 @@ class TestChatRoutes:
         assert resp.status_code == 422
         self._clear_overrides()
 
+    # DELETE /sessions/{id}
+    def test_delete_session_unauthenticated_returns_401(self):
+        resp = self.client.delete("/api/sessions/sess-1")
+        assert resp.status_code == 401
+
+    def test_delete_session_returns_204_on_success(self):
+        self._override_get_current_user()
+        mock_svc = AsyncMock()
+        mock_svc.delete_session = AsyncMock(return_value=True)
+        self._override_chat_service(mock_svc)
+
+        resp = self.client.delete("/api/sessions/sess-1", headers=self.headers)
+        assert resp.status_code == 204
+        self._clear_overrides()
+
+    def test_delete_session_returns_404_on_failure(self):
+        self._override_get_current_user()
+        mock_svc = AsyncMock()
+        mock_svc.delete_session = AsyncMock(return_value=False)
+        self._override_chat_service(mock_svc)
+
+        resp = self.client.delete("/api/sessions/missing-sess", headers=self.headers)
+        assert resp.status_code == 404
+        self._clear_overrides()
+
 
 # ===========================================================================
 # Ingest routes
