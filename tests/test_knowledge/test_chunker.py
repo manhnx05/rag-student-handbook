@@ -1,5 +1,11 @@
 import os
+import sys
+import pathlib
 import tempfile
+
+BACKEND = pathlib.Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(BACKEND))
+
 from src.knowledge.text_splitter import process_pdf_to_chunks
 from pypdf import PdfWriter  # type: ignore
 
