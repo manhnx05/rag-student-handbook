@@ -89,6 +89,19 @@ async def get_messages(
     ]
 
 
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(
+    session_id: str,
+    user_id: str = Depends(get_current_user),
+    chat_service: ChatService = Depends(get_chat_service),
+):
+    """Delete a chat session and all its messages."""
+    success = await chat_service.delete_session(session_id, user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return None
+
+
 async def _stream_and_save(
     query: str,
     session_id: str,

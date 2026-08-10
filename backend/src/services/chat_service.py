@@ -78,6 +78,16 @@ class ChatService:
         await self.db.commit()
         return session_id
 
+    async def delete_session(self, session_id: str, user_id: str) -> bool:
+        """Delete a chat session and its messages if it belongs to the user."""
+        session = await self.get_session_if_owned(session_id, user_id)
+        if not session:
+            return False
+        
+        await self.db.delete(session)
+        await self.db.commit()
+        return True
+
     # ------------------------------------------------------------------
     # Messages
     # ------------------------------------------------------------------
