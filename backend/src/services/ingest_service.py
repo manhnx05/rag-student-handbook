@@ -20,17 +20,20 @@ logger = get_logger(__name__)
 
 class IngestionService:
     @staticmethod
-    def save_upload_file(upload_file: UploadFile, destination_path: str) -> None:
-        """Write the uploaded file to disk synchronously.
+    async def save_upload_file(upload_file: UploadFile, destination_path: str) -> None:
+        """Write the uploaded file to disk asynchronously to avoid blocking the event loop.
 
         Closes the upload file handle when done (required by FastAPI).
         """
         try:
-            with open(destination_path, "wb") as buf:
-                shutil.copyfileobj(upload_file.file, buf)
+            content = await upload_file.read()
+            def _write():
+                with open(destination_path, "wb") as buf:
+                    buf.write(content)
+            await asyncio.to_thread(_write)
             logger.info("Saved upload to %s", destination_path)
         finally:
-            upload_file.file.close()
+            await upload_file.close()
 
     @staticmethod
     async def process_pdf_ingestion(

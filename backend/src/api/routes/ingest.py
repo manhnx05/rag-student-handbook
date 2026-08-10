@@ -34,7 +34,7 @@ async def ingest_documents(
     file_path = os.path.join(raw_dir, file.filename)
 
     try:
-        IngestionService.save_upload_file(file, file_path)
+        await IngestionService.save_upload_file(file, file_path)
         process_pdf_ingestion_task.delay(file_path)
 
         return {
