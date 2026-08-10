@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Document Loader — LLM-based entity & relationship extraction from text chunks.
 
@@ -61,6 +60,7 @@ def extract_from_chunks(chunks: List[Dict[str, Any]]) -> GraphIngestionData:
         llm=llm,
         allowed_nodes=["Person", "Organization", "Department", "Topic", "Rule", "Policy", "Document", "Process", "Entity"],
         allowed_relationships=["HAS_POLICY", "BELONGS_TO", "DEFINES", "RELATED_TO", "GOVERNS", "REQUIRES", "IMPLEMENTS"]
+    )
 
     docs = []
     total = len(chunks)
