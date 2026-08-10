@@ -104,7 +104,7 @@ class AuthService:
         # Use configurable FRONTEND_URL — never hardcode localhost
         reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
 
-        self._send_reset_email(user.email, reset_link)
+        self._send_reset_email(str(user.email), reset_link)
 
         return generic_response
 
