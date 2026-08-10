@@ -28,6 +28,7 @@ export default function ChatPage() {
     isTyping,
     handleNewChat,
     handleSendMessage,
+    handleDeleteSession,
   } = useChatStream(token);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function ChatPage() {
         user={user}
         onSelectSession={setActiveSessionId}
         onNewChat={handleNewChat}
+        onDeleteSession={handleDeleteSession}
         onLogout={logout}
       />
 
@@ -73,7 +75,7 @@ export default function ChatPage() {
           >
             <Menu className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg font-semibold">Student Handbook Assistant</h1>
+          <h1 className="text-lg font-semibold">Trợ Lý Hỏi Đáp Sinh Viên Phenikaa</h1>
         </header>
 
         <div
@@ -85,9 +87,9 @@ export default function ChatPage() {
               <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
                 <MessageSquare className="w-8 h-8" />
               </div>
-              <h2 className="text-2xl font-semibold">How can I help you today?</h2>
+              <h2 className="text-2xl font-semibold">Tôi có thể giúp gì cho bạn?</h2>
               <p className="text-gray-500 max-w-md">
-                Ask me anything about the Student Handbook, courses, graduation requirements, or university policies.
+                Hãy hỏi tôi bất kỳ điều gì về Sổ tay Sinh viên, quy chế đào tạo, chuẩn đầu ra hay các quy định của Đại học Phenikaa.
               </p>
             </div>
           ) : (

@@ -20,7 +20,7 @@ export const MessageBubble = React.memo(({ msg }: { msg: ChatMessage }) => {
     >
       {msg.role === 'ai' && (
         <Avatar className="w-8 h-8 mt-1 shrink-0 bg-blue-600">
-          <AvatarFallback className="text-white">AI</AvatarFallback>
+          <AvatarFallback className="text-white">PH</AvatarFallback>
         </Avatar>
       )}
       <div

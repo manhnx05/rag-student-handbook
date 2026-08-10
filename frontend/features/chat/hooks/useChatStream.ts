@@ -118,6 +118,19 @@ export function useChatStream(token: string | null) {
     }
   };
 
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await api.delete(`/sessions/${sessionId}`);
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(null);
+        setMessages([]);
+      }
+      refetchSessions();
+    } catch (err) {
+      console.error("Failed to delete session", err);
+    }
+  };
+
   return {
     sessions,
     activeSessionId,
@@ -128,5 +141,6 @@ export function useChatStream(token: string | null) {
     isTyping,
     handleNewChat,
     handleSendMessage,
+    handleDeleteSession,
   };
 }

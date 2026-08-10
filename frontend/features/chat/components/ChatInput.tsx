@@ -20,7 +20,7 @@ export function ChatInput({ input, isTyping, onInputChange, onSubmit }: ChatInpu
         <Input
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
-          placeholder="Message Student Handbook Assistant..."
+          placeholder="Hỏi Trợ Lý Phenikaa..."
           className="pr-12 py-6 rounded-full border-gray-300 focus-visible:ring-blue-500 shadow-sm"
           disabled={isTyping}
         />
