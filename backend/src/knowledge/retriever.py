@@ -7,6 +7,7 @@ Strategy:
 3. Merge and deduplicate results, prioritising vector hits, then appending
    graph context so the LLM has richer, structured knowledge.
 """
+import asyncio
 from typing import List
 
 from src.memory.vector_store import get_vector_store
@@ -41,37 +42,42 @@ def _format_graph_results(graph_results: list) -> str:
     return "\n".join(lines)
 
 
+def _do_vector_search(query: str, top_k: int) -> str:
+    try:
+        vector_store = get_vector_store()
+        results = vector_store.query(query, top_k=top_k)
+        documents = results.get("documents", [[]])[0]
+        if documents:
+            return "\n\n---\n\n".join(documents)
+    except Exception as exc:
+        logger.warning("Vector search failed: %s", exc)
+    return ""
+
+def _do_graph_search(query: str, top_k: int) -> str:
+    try:
+        graph_store = get_graph_store()
+        graph_results = graph_store.query_graph(query, top_k=top_k)
+        return _format_graph_results(graph_results)
+    except Exception as exc:
+        logger.warning("Graph search failed: %s", exc)
+    return ""
+
 async def hybrid_search(query: str, top_k: int | None = None) -> str:
     """
-    Perform hybrid retrieval combining Qdrant and Neo4j.
-
+    Perform hybrid retrieval combining Qdrant and Neo4j concurrently.
+    
     Returns a single string with all retrieved context ready to be passed
     into the LLM prompt.
     """
     if top_k is None:
         top_k = settings.TOP_K_RESULTS
 
-    # ── 1. Vector search (Qdrant) ────────────────────────────────────────────
-    vector_context = ""
-    try:
-        vector_store = get_vector_store()
-        results = vector_store.query(query, top_k=top_k)
-        documents = results.get("documents", [[]])[0]
-        if documents:
-            vector_context = "\n\n---\n\n".join(documents)
-    except Exception as exc:
-        logger.warning("Vector search failed: %s", exc)
+    # Execute both IO-bound searches in separate threads concurrently
+    vector_task = asyncio.to_thread(_do_vector_search, query, top_k)
+    graph_task = asyncio.to_thread(_do_graph_search, query, top_k)
 
-    # ── 2. Graph search (Neo4j) ──────────────────────────────────────────────
-    graph_context = ""
-    try:
-        graph_store = await get_graph_store()
-        graph_results = await graph_store.query_graph(query, top_k=top_k)
-        graph_context = _format_graph_results(graph_results)
-    except Exception as exc:
-        logger.warning("Graph search failed: %s", exc)
+    vector_context, graph_context = await asyncio.gather(vector_task, graph_task)
 
-    # ── 3. Merge ─────────────────────────────────────────────────────────────
     parts: List[str] = []
 
     if vector_context:
