@@ -321,3 +321,31 @@ class TestSaveMessage:
         added = db.add.call_args[0][0]
         assert added.role == "ai"
         assert added.content == "Here is the answer..."
+
+# ===========================================================================
+# delete_session()
+# ===========================================================================
+class TestDeleteSession:
+    def test_deletes_session_when_owned(self):
+        from src.services.chat_service import ChatService
+
+        session = _make_session(session_id="sess-1", user_id="user-1")
+        db = _make_db_returning([session])
+        db.delete = AsyncMock()
+        svc = ChatService(db)
+
+        result = _run(svc.delete_session("sess-1", "user-1"))
+        assert result is True
+        db.delete.assert_awaited_once_with(session)
+        db.commit.assert_awaited_once()
+
+    def test_returns_false_when_not_found(self):
+        from src.services.chat_service import ChatService
+
+        db = _make_db_returning([])
+        db.delete = AsyncMock()
+        svc = ChatService(db)
+
+        result = _run(svc.delete_session("missing", "user-1"))
+        assert result is False
+        db.delete.assert_not_called()
