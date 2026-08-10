@@ -68,7 +68,7 @@ async def _get_executor():
         _executor = create_agent(
             llm,
             tools=[handbook_search_tool],
-            prompt=SYSTEM_PROMPT,
+            system_prompt=SYSTEM_PROMPT,
             checkpointer=checkpointer,
         )
 
