@@ -61,7 +61,7 @@ async def _get_executor():
         )
         await _pool.open()
 
-        checkpointer = AsyncPostgresSaver(conn=_pool)
+        checkpointer = AsyncPostgresSaver(conn=_pool)  # type: ignore
         await checkpointer.setup()   # creates checkpoint tables if they don't exist
 
         llm = LLMFactory.get_llm()
