@@ -405,7 +405,7 @@ class TestSendResetEmail:
         db = _make_db()
         svc = AuthService(db)
 
-        with patch("src.core.config.settings") as mock_settings:
+        with patch("src.services.auth_service.settings") as mock_settings:
             mock_settings.RESEND_API_KEY = None
             # Should not raise, just log a warning
             svc._send_reset_email("test@example.com", "http://example.com/reset?token=abc")
@@ -420,7 +420,7 @@ class TestSendResetEmail:
         mock_resend.Emails.send = MagicMock()
 
         with (
-            patch("src.core.config.settings") as mock_settings,
+            patch("src.services.auth_service.settings") as mock_settings,
             patch.dict("sys.modules", {"resend": mock_resend}),
         ):
             mock_settings.RESEND_API_KEY = "re_test_key"
@@ -441,7 +441,7 @@ class TestSendResetEmail:
         mock_resend.Emails.send = MagicMock(side_effect=Exception("SMTP error"))
 
         with (
-            patch("src.core.config.settings") as mock_settings,
+            patch("src.services.auth_service.settings") as mock_settings,
             patch.dict("sys.modules", {"resend": mock_resend}),
         ):
             mock_settings.RESEND_API_KEY = "re_key"
