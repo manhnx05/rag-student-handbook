@@ -192,7 +192,7 @@ class TestConcurrentSingletonConstruction:
         call_results = []
         call_errors = []
 
-        with patch("src.memory.embeddings.OpenAIEmbeddings", return_value=MagicMock()):
+        with patch("src.memory.embeddings.GoogleGenerativeAIEmbeddings", return_value=MagicMock()):
             def worker2():
                 try:
                     obj = mod.get_embedding_model()
