@@ -12,7 +12,7 @@ import logging
 from functools import lru_cache
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +24,8 @@ from src.utils.auth_utils import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+from src.api.limiter import limiter
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +54,9 @@ from src.schemas.chat import ChatRequest, SessionResponse, MessageResponse
 # ---------------------------------------------------------------------------
 
 @router.get("/sessions", response_model=List[SessionResponse])
+@limiter.limit("20/minute")
 async def get_sessions(
+    request: Request,
     user_id: str = Depends(get_current_user),
     chat_service: ChatService = Depends(get_chat_service),
     limit: int = Query(default=50, ge=1, le=200, description="Max sessions to return"),
@@ -121,8 +125,10 @@ async def _stream_and_save(
 
 
 @router.post("/chat")
+@limiter.limit("10/minute")
 async def chat_endpoint(
-    request: ChatRequest,
+    request: Request,
+    chat_request: ChatRequest,
     user_id: str = Depends(get_current_user),
     chat_service: ChatService = Depends(get_chat_service),
     orchestrator: HandbookOrchestrator = Depends(get_orchestrator),
@@ -133,20 +139,20 @@ async def chat_endpoint(
     in the X-Session-ID response header.
     """
     try:
-        session_id = request.session_id
+        session_id = chat_request.session_id
 
         if not session_id:
-            session_id = await chat_service.create_session(user_id, request.question)
+            session_id = await chat_service.create_session(user_id, chat_request.question)
         else:
             session = await chat_service.get_session_if_owned(session_id, user_id)
             if not session:
                 raise HTTPException(status_code=404, detail="Session not found")
 
-        await chat_service.save_message(session_id, "user", request.question)
+        await chat_service.save_message(session_id, "user", chat_request.question)
 
         return StreamingResponse(
             _stream_and_save(
-                request.question, session_id, chat_service, orchestrator
+                chat_request.question, session_id, chat_service, orchestrator
             ),
             media_type="text/plain",
             headers={"X-Session-ID": session_id},
