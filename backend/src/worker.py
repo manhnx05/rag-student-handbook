@@ -1,10 +1,10 @@
 from celery import Celery
 from src.core.config import settings
 from src.services.ingest_service import IngestionService
+from src.core.logger import get_logger
 import asyncio
-import logging
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 celery_app = Celery(
     "handbook_worker",
