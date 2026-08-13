@@ -22,6 +22,10 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 from src.api.exception_handlers import setup_exception_handlers
+from src.api.limiter import limiter
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 
 app = FastAPI(
     title="Student Handbook RAG API",
@@ -31,6 +35,9 @@ app = FastAPI(
 )
 
 setup_exception_handlers(app)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS — origins are read from settings.CORS_ORIGINS so they can be
 # overridden at deploy time via the CORS_ORIGINS environment variable
