@@ -21,12 +21,16 @@ async def lifespan(app: FastAPI):
     yield
     await close_db()
 
+from src.api.exception_handlers import setup_exception_handlers
+
 app = FastAPI(
     title="Student Handbook RAG API",
     description="API for the Student Handbook AI Assistant with Streaming capabilities",
     version="1.0.0",
     lifespan=lifespan
 )
+
+setup_exception_handlers(app)
 
 # CORS — origins are read from settings.CORS_ORIGINS so they can be
 # overridden at deploy time via the CORS_ORIGINS environment variable
