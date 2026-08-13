@@ -1,7 +1,7 @@
 import os
 import logging
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 
 from src.services.ingest_service import IngestionService
 from src.utils.auth_utils import get_current_admin_user
@@ -10,12 +10,15 @@ from src.worker import process_pdf_ingestion_task
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+from src.api.limiter import limiter
 
 
 
 
 @router.post("/ingest", summary="Ingest a PDF into the knowledge base (admin only)")
+@limiter.limit("5/minute")
 async def ingest_documents(
+    request: Request,
     file: UploadFile = File(...),
     # Require a valid JWT AND admin flag — 401/403 otherwise
     _admin_id: str = Depends(get_current_admin_user),
