@@ -1,5 +1,6 @@
 from src.agents.handbook_agent import HandbookAgent
-
+from src.core.exceptions import HandbookException
+from src.services.guardrails import PromptInjectionGuardrail
 
 class HandbookOrchestrator:
     """
@@ -20,6 +21,9 @@ class HandbookOrchestrator:
         """
         Process a user query and yield streaming response chunks from the agent.
         """
+        if not PromptInjectionGuardrail.check_query(query):
+            raise HandbookException("Query rejected: Suspicious pattern detected or query too long.")
+            
         if session_id is None:
             session_id = "default_session"
 
