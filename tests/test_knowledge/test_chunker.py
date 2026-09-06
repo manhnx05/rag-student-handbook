@@ -6,7 +6,7 @@ import tempfile
 BACKEND = pathlib.Path(__file__).parent.parent.parent / "backend"
 sys.path.insert(0, str(BACKEND))
 
-from src.knowledge.text_splitter import process_pdf_to_chunks
+from app.ingestion.text_splitter import process_pdf_to_chunks
 from pypdf import PdfWriter  # type: ignore
 from unittest.mock import patch
 
@@ -40,7 +40,7 @@ def create_test_pdf():
     return pdf_path, temp_dir
 
 
-@patch("src.knowledge.text_splitter.GoogleGenerativeAIEmbeddings")
+@patch("app.ingestion.text_splitter.GoogleGenerativeAIEmbeddings")
 def test_process_pdf_to_chunks(mock_google_embeddings):
     pdf_path, temp_dir = create_test_pdf()
     
