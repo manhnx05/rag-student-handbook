@@ -90,7 +90,7 @@ def _run(coro):
 # ===========================================================================
 class TestRegister:
     def test_register_new_user_returns_token(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
         from fastapi import HTTPException
 
         db = _make_db(query_result=None)  # no existing user
@@ -100,7 +100,7 @@ class TestRegister:
 
         db.refresh = mock_refresh
 
-        with patch("src.services.auth_service.get_password_hash", return_value="hashed"):
+        with patch("app.services.auth_service.get_password_hash", return_value="hashed"):
             svc = AuthService(db)
             result = _run(svc.register("new@example.com", "password123"))
 
@@ -109,7 +109,7 @@ class TestRegister:
         assert result["user"]["email"] == "new@example.com"
 
     def test_register_duplicate_email_raises_400(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
         from fastapi import HTTPException
 
         existing = _make_user(email="dup@example.com")
@@ -123,12 +123,12 @@ class TestRegister:
         assert "already registered" in exc_info.value.detail.lower()
 
     def test_register_hashes_password(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         db = _make_db(query_result=None)
         db.refresh = AsyncMock()
 
-        with patch("src.services.auth_service.get_password_hash", return_value="hashed_pw") as mock_hash:
+        with patch("app.services.auth_service.get_password_hash", return_value="hashed_pw") as mock_hash:
             svc = AuthService(db)
             _run(svc.register("a@example.com", "mypassword"))
             mock_hash.assert_called_once_with("mypassword")
@@ -139,12 +139,12 @@ class TestRegister:
 # ===========================================================================
 class TestLogin:
     def test_login_success(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         user = _make_user(email="user@example.com")
         db = _make_db(query_result=user)
 
-        with patch("src.services.auth_service.verify_password", return_value=True):
+        with patch("app.services.auth_service.verify_password", return_value=True):
             svc = AuthService(db)
             result = _run(svc.login("user@example.com", "correct_pw"))
 
@@ -152,13 +152,13 @@ class TestLogin:
         assert result["user"]["email"] == "user@example.com"
 
     def test_login_wrong_password_raises_400(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
         from fastapi import HTTPException
 
         user = _make_user()
         db = _make_db(query_result=user)
 
-        with patch("src.services.auth_service.verify_password", return_value=False):
+        with patch("app.services.auth_service.verify_password", return_value=False):
             svc = AuthService(db)
             with pytest.raises(HTTPException) as exc_info:
                 _run(svc.login("user@example.com", "wrong"))
@@ -167,7 +167,7 @@ class TestLogin:
         assert "incorrect" in exc_info.value.detail.lower()
 
     def test_login_user_not_found_raises_400(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
         from fastapi import HTTPException
 
         db = _make_db(query_result=None)
@@ -179,12 +179,12 @@ class TestLogin:
         assert exc_info.value.status_code == 400
 
     def test_login_returns_bearer_type(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         user = _make_user()
         db = _make_db(query_result=user)
 
-        with patch("src.services.auth_service.verify_password", return_value=True):
+        with patch("app.services.auth_service.verify_password", return_value=True):
             svc = AuthService(db)
             result = _run(svc.login("user@example.com", "pw"))
 
@@ -197,12 +197,12 @@ class TestLogin:
 class TestGoogleAuth:
     def _mock_google_verify(self, email: str):
         return patch(
-            "src.services.auth_service.id_token.verify_oauth2_token",
+            "app.services.auth_service.id_token.verify_oauth2_token",
             return_value={"email": email},
         )
 
     def test_google_auth_new_user_created(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         db = _make_db(query_result=None)
         created_user = _make_user(email="google@example.com", is_google_login=True)
@@ -217,7 +217,7 @@ class TestGoogleAuth:
         assert "access_token" in result
 
     def test_google_auth_existing_user_not_duplicated(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         existing = _make_user(email="existing@example.com", is_google_login=True)
         db = _make_db(query_result=existing)
@@ -230,13 +230,13 @@ class TestGoogleAuth:
         assert result["user"]["email"] == "existing@example.com"
 
     def test_google_auth_invalid_token_raises_400(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
         from fastapi import HTTPException
 
         db = _make_db(query_result=None)
 
         with patch(
-            "src.services.auth_service.id_token.verify_oauth2_token",
+            "app.services.auth_service.id_token.verify_oauth2_token",
             side_effect=ValueError("invalid token"),
         ):
             svc = AuthService(db)
@@ -247,13 +247,13 @@ class TestGoogleAuth:
         assert "invalid google token" in exc_info.value.detail.lower()
 
     def test_google_auth_missing_email_raises_400(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
         from fastapi import HTTPException
 
         db = _make_db(query_result=None)
 
         with patch(
-            "src.services.auth_service.id_token.verify_oauth2_token",
+            "app.services.auth_service.id_token.verify_oauth2_token",
             return_value={"email": None},
         ):
             svc = AuthService(db)
@@ -268,7 +268,7 @@ class TestGoogleAuth:
 # ===========================================================================
 class TestForgotPassword:
     def test_user_not_found_returns_generic_message(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         db = _make_db(query_result=None)
         svc = AuthService(db)
@@ -278,7 +278,7 @@ class TestForgotPassword:
         assert "if that email" in result["message"].lower()
 
     def test_google_login_user_raises_400(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
         from fastapi import HTTPException
 
         user = _make_user(is_google_login=True)
@@ -292,7 +292,7 @@ class TestForgotPassword:
         assert "google login" in exc_info.value.detail.lower()
 
     def test_normal_user_calls_send_email(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         user = _make_user(email="normal@example.com", is_google_login=False)
         db = _make_db(query_result=user)
@@ -307,8 +307,8 @@ class TestForgotPassword:
         assert "/reset-password?token=" in call_args[1]  # reset_link
 
     def test_reset_link_uses_frontend_url(self):
-        from src.services.auth_service import AuthService
-        from src.core.config import Settings
+        from app.services.auth_service import AuthService
+        from app.core.config import Settings
 
         user = _make_user(email="user@example.com", is_google_login=False)
         db = _make_db(query_result=user)
@@ -324,7 +324,7 @@ class TestForgotPassword:
 
         assert len(captured_links) == 1
         # Must start with FRONTEND_URL, not hardcoded localhost
-        from src.core.config import settings
+        from app.core.config import settings
         assert captured_links[0].startswith(settings.FRONTEND_URL)
         assert "localhost:3000" not in captured_links[0].replace(settings.FRONTEND_URL, "")
 
@@ -334,8 +334,8 @@ class TestForgotPassword:
 # ===========================================================================
 class TestResetPassword:
     def test_valid_token_updates_password(self):
-        from src.services.auth_service import AuthService
-        from src.utils.auth_utils import create_access_token
+        from app.services.auth_service import AuthService
+        from app.utils.auth_utils import create_access_token
 
         user = _make_user(uid="user-123")
         db = _make_db(query_result=user)
@@ -343,7 +343,7 @@ class TestResetPassword:
 
         reset_token = create_access_token({"sub": "user-123", "type": "reset_password"})
 
-        with patch("src.services.auth_service.get_password_hash", return_value="new_hash"):
+        with patch("app.services.auth_service.get_password_hash", return_value="new_hash"):
             result = _run(svc.reset_password(reset_token, "new_password"))
 
         assert result["message"] == "Password updated successfully"
@@ -351,7 +351,7 @@ class TestResetPassword:
         db.commit.assert_awaited()
 
     def test_invalid_token_raises_400(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
         from fastapi import HTTPException
 
         db = _make_db()
@@ -364,8 +364,8 @@ class TestResetPassword:
         assert "invalid" in exc_info.value.detail.lower()
 
     def test_wrong_token_type_raises_400(self):
-        from src.services.auth_service import AuthService
-        from src.utils.auth_utils import create_access_token
+        from app.services.auth_service import AuthService
+        from app.utils.auth_utils import create_access_token
         from fastapi import HTTPException
 
         # Normal access token (no 'type' claim)
@@ -379,8 +379,8 @@ class TestResetPassword:
         assert exc_info.value.status_code == 400
 
     def test_user_not_found_raises_404(self):
-        from src.services.auth_service import AuthService
-        from src.utils.auth_utils import create_access_token
+        from app.services.auth_service import AuthService
+        from app.utils.auth_utils import create_access_token
         from fastapi import HTTPException
 
         db = _make_db(query_result=None)  # no user found
@@ -399,19 +399,19 @@ class TestResetPassword:
 # ===========================================================================
 class TestSendResetEmail:
     def test_skipped_when_no_api_key(self):
-        from src.services.auth_service import AuthService
-        from src.core.config import Settings
+        from app.services.auth_service import AuthService
+        from app.core.config import Settings
 
         db = _make_db()
         svc = AuthService(db)
 
-        with patch("src.services.auth_service.settings") as mock_settings:
+        with patch("app.services.auth_service.settings") as mock_settings:
             mock_settings.RESEND_API_KEY = None
             # Should not raise, just log a warning
             svc._send_reset_email("test@example.com", "http://example.com/reset?token=abc")
 
     def test_sends_when_api_key_present(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         db = _make_db()
         svc = AuthService(db)
@@ -420,7 +420,7 @@ class TestSendResetEmail:
         mock_resend.Emails.send = MagicMock()
 
         with (
-            patch("src.services.auth_service.settings") as mock_settings,
+            patch("app.services.auth_service.settings") as mock_settings,
             patch.dict("sys.modules", {"resend": mock_resend}),
         ):
             mock_settings.RESEND_API_KEY = "re_test_key"
@@ -432,7 +432,7 @@ class TestSendResetEmail:
         assert "reset" in call_kwargs["subject"].lower()
 
     def test_email_send_failure_does_not_raise(self):
-        from src.services.auth_service import AuthService
+        from app.services.auth_service import AuthService
 
         db = _make_db()
         svc = AuthService(db)
@@ -441,7 +441,7 @@ class TestSendResetEmail:
         mock_resend.Emails.send = MagicMock(side_effect=Exception("SMTP error"))
 
         with (
-            patch("src.services.auth_service.settings") as mock_settings,
+            patch("app.services.auth_service.settings") as mock_settings,
             patch.dict("sys.modules", {"resend": mock_resend}),
         ):
             mock_settings.RESEND_API_KEY = "re_key"
