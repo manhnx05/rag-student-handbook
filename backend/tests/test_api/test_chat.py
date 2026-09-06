@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from httpx import AsyncClient, ASGITransport
 
-from src.api.main import app
-from src.api.routes.chat import get_orchestrator
-from src.utils.auth_utils import get_current_user
-from src.db.database import get_db
+from app.api.main import app
+from app.api.routes.chat import get_orchestrator
+from app.utils.auth_utils import get_current_user
+from app.db.database import get_db
 
 
 # ── Mock helpers ─────────────────────────────────────────────────────────────
