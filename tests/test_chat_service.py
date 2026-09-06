@@ -84,7 +84,7 @@ def _make_db_returning(items) -> AsyncMock:
 # ===========================================================================
 class TestGetUserSessions:
     def test_returns_list_of_sessions(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         sessions = [_make_session(title=f"Session {i}") for i in range(3)]
         db = _make_db_returning(sessions)
@@ -94,7 +94,7 @@ class TestGetUserSessions:
         assert len(result) == 3
 
     def test_returns_empty_list_when_no_sessions(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = _make_db_returning([])
         svc = ChatService(db)
@@ -104,7 +104,7 @@ class TestGetUserSessions:
 
     def test_limit_capped_at_200(self):
         """Even if caller passes limit=999, it must be capped at 200 before the DB query."""
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = _make_db_returning([])
         svc = ChatService(db)
@@ -116,7 +116,7 @@ class TestGetUserSessions:
         assert True  # no exception = pass
 
     def test_accepts_custom_limit_and_offset(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         sessions = [_make_session(title=f"S{i}") for i in range(10)]
         db = _make_db_returning(sessions[:5])
@@ -131,7 +131,7 @@ class TestGetUserSessions:
 # ===========================================================================
 class TestGetSessionIfOwned:
     def test_returns_session_when_owned(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         session = _make_session(session_id="sess-1", user_id="user-1")
         db = _make_db_returning([session])
@@ -141,7 +141,7 @@ class TestGetSessionIfOwned:
         assert result is session
 
     def test_returns_none_when_not_found(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = _make_db_returning([])
         svc = ChatService(db)
@@ -164,7 +164,7 @@ class TestCreateSession:
         return db.add.call_args[0][0]
 
     def test_returns_uuid_string(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = self._make_db()
         svc = ChatService(db)
@@ -175,7 +175,7 @@ class TestCreateSession:
         uuid.UUID(result)  # raises if invalid
 
     def test_short_question_title_unchanged(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = self._make_db()
         svc = ChatService(db)
@@ -185,7 +185,7 @@ class TestCreateSession:
         assert session.title == "Short question"
 
     def test_long_question_truncated_with_ellipsis(self):
-        from src.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
+        from app.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
 
         db = self._make_db()
         svc = ChatService(db)
@@ -197,7 +197,7 @@ class TestCreateSession:
         assert len(session.title) == SESSION_TITLE_MAX_LEN + 1  # +1 for ellipsis
 
     def test_exact_max_len_not_truncated(self):
-        from src.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
+        from app.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
 
         db = self._make_db()
         svc = ChatService(db)
@@ -209,7 +209,7 @@ class TestCreateSession:
         assert not session.title.endswith("…")
 
     def test_session_user_id_set_correctly(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = self._make_db()
         svc = ChatService(db)
@@ -219,7 +219,7 @@ class TestCreateSession:
         assert session.user_id == "user-abc"
 
     def test_commit_called(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = self._make_db()
         svc = ChatService(db)
@@ -233,7 +233,7 @@ class TestCreateSession:
 # ===========================================================================
 class TestGetSessionMessages:
     def test_returns_messages_in_order(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         msgs = [
             _make_message("sess-1", "user", "Hello"),
@@ -248,7 +248,7 @@ class TestGetSessionMessages:
         assert result[1].role == "ai"
 
     def test_returns_empty_for_no_messages(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = _make_db_returning([])
         svc = ChatService(db)
@@ -262,7 +262,7 @@ class TestGetSessionMessages:
 # ===========================================================================
 class TestGetSessionHistory:
     def test_returns_role_content_tuples(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         msgs = [
             _make_message("sess-1", "user", "What is attendance?"),
@@ -278,7 +278,7 @@ class TestGetSessionHistory:
         ]
 
     def test_empty_session_returns_empty_list(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = _make_db_returning([])
         svc = ChatService(db)
@@ -292,7 +292,7 @@ class TestGetSessionHistory:
 # ===========================================================================
 class TestSaveMessage:
     def test_saves_user_message(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = AsyncMock()
         db.add = MagicMock()
@@ -309,7 +309,7 @@ class TestSaveMessage:
         assert added.content == "Hello"
 
     def test_saves_ai_message(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = AsyncMock()
         db.add = MagicMock()
@@ -327,7 +327,7 @@ class TestSaveMessage:
 # ===========================================================================
 class TestDeleteSession:
     def test_deletes_session_when_owned(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         session = _make_session(session_id="sess-1", user_id="user-1")
         db = _make_db_returning([session])
@@ -340,7 +340,7 @@ class TestDeleteSession:
         db.commit.assert_awaited_once()
 
     def test_returns_false_when_not_found(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
 
         db = _make_db_returning([])
         db.delete = AsyncMock()
