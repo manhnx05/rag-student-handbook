@@ -7,7 +7,20 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ChatMessage } from '../hooks/useChatStream';
 
-export const MessageBubble = React.memo(({ msg }: { msg: ChatMessage }) => {
+type MessageBubbleProps =
+  | { msg: ChatMessage }
+  | { role: string; content: string };
+
+export const MessageBubble = React.memo((props: MessageBubbleProps) => {
+  const msg: ChatMessage = 'msg' in props
+    ? props.msg
+    : {
+        id: 'legacy-message',
+        role: props.role === 'assistant' ? 'ai' : props.role,
+        content: props.content,
+      };
+  const isUserMessage = msg.role === 'user';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -15,26 +28,30 @@ export const MessageBubble = React.memo(({ msg }: { msg: ChatMessage }) => {
       transition={{ duration: 0.3 }}
       className={cn(
         "flex gap-4 w-full",
-        msg.role === 'user' ? "justify-end" : "justify-start"
+        isUserMessage ? "justify-end" : "justify-start"
       )}
     >
-      {msg.role === 'ai' && (
+      {!isUserMessage && (
         <Avatar className="w-8 h-8 mt-1 shrink-0 bg-blue-600">
-          <AvatarFallback className="text-white">PH</AvatarFallback>
+          <AvatarFallback className="text-white">AI</AvatarFallback>
         </Avatar>
       )}
       <div
         className={cn(
           "px-4 py-3 rounded-2xl max-w-[85%]",
-          msg.role === 'user'
+          isUserMessage
             ? "bg-blue-600 text-white rounded-tr-sm"
             : "bg-white dark:bg-gray-800 shadow-sm border rounded-tl-sm text-gray-800 dark:text-gray-200"
         )}
       >
-        {msg.role === 'user' ? (
-          <p className="whitespace-pre-wrap">{msg.content}</p>
+        {isUserMessage ? (
+          <>
+            <p className="mb-1 text-xs font-medium opacity-80">You</p>
+            <p className="whitespace-pre-wrap">{msg.content}</p>
+          </>
         ) : (
           <div className="prose prose-sm max-w-none dark:prose-invert">
+            <p className="mb-1 text-xs font-medium text-muted-foreground">Handbook Assistant</p>
             {msg.content ? (
               <ReactMarkdown
                 components={{
@@ -81,6 +98,11 @@ export const MessageBubble = React.memo(({ msg }: { msg: ChatMessage }) => {
           </div>
         )}
       </div>
+      {isUserMessage && (
+        <Avatar className="w-8 h-8 mt-1 shrink-0 bg-gray-200">
+          <AvatarFallback>U</AvatarFallback>
+        </Avatar>
+      )}
     </motion.div>
   );
 });
