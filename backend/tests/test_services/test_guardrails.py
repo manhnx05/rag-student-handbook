@@ -1,5 +1,5 @@
 import pytest
-from src.services.guardrails import PromptInjectionGuardrail
+from app.services.guardrails import PromptInjectionGuardrail
 
 def test_safe_query():
     assert PromptInjectionGuardrail.check_query("What is the registration process?") == True
