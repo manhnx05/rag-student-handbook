@@ -15,4 +15,4 @@ The equivalent layout-aware entrypoint is:
 docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-Infrastructure-specific configuration is stored under `infra/`.
+Infrastructure-specific configuration is stored under `docker/infra/`.
