@@ -1,11 +1,11 @@
 import pytest
 import uuid
 from unittest.mock import patch, MagicMock
-from src.memory.vector_store import VectorStore
+from app.vector_store.vector_store import VectorStore
 
 @pytest.fixture
 def mock_qdrant_client():
-    with patch('src.memory.vector_store.QdrantClient') as mock_client:
+    with patch('app.vector_store.vector_store.QdrantClient') as mock_client:
         mock_instance = mock_client.return_value
         # Setup mock behavior
         mock_count_result = MagicMock()
@@ -17,8 +17,8 @@ def mock_qdrant_client():
         ]
         yield mock_instance
 
-@patch('src.memory.vector_store.embed_texts')
-@patch('src.memory.vector_store.embed_text')
+@patch('app.vector_store.vector_store.embed_texts')
+@patch('app.vector_store.vector_store.embed_text')
 def test_vector_store(mock_embed_text, mock_embed_texts, mock_qdrant_client):
     # Setup embedding mocks
     mock_embed_texts.return_value = [[0.1]*1536, [0.2]*1536]
