@@ -103,7 +103,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: ../docker/Dockerfile
     container_name: student-handbook-backend
     restart: unless-stopped
     depends_on:
@@ -168,7 +168,7 @@ services:
   celery_worker:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: ../docker/Dockerfile
     container_name: student-handbook-celery
     restart: unless-stopped
     command: celery -A app.worker.celery_app worker --loglevel=info
