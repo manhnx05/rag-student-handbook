@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from src.services.handbook_orchestrator import HandbookOrchestrator
+from app.services.handbook_orchestrator import HandbookOrchestrator
 
 @pytest.mark.asyncio
 async def test_orchestrator_initialization():
