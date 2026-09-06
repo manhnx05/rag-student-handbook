@@ -21,7 +21,7 @@ knowledge graph trên Neo4j và sinh câu trả lời bằng Gemini.
 ## Cách chạy
 
 1. Sao chép `.env.example` thành `.env` và điền các secret cần thiết.
-2. Chạy `docker compose up -d --build`.
+2. Chạy `docker compose -f docker/docker-compose.yml up -d --build`.
 3. Truy cập `http://localhost:8080` qua Nginx.
 
 Chạy backend trực tiếp từ thư mục `backend`:
