@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 # ---------------------------------------------------------------------------
 # RAG Student Handbook — full Docker Compose stack
@@ -171,7 +171,7 @@ services:
       dockerfile: Dockerfile
     container_name: student-handbook-celery
     restart: unless-stopped
-    command: celery -A src.worker.celery_app worker --loglevel=info
+    command: celery -A app.worker.celery_app worker --loglevel=info
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       QDRANT_URL: http://qdrant:6333
