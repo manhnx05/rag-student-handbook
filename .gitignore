@@ -38,6 +38,7 @@ data/uploads/
 # Node modules
 node_modules/
 .next/
+*.tsbuildinfo
 
 # Docker
 docker-compose.override.yml
