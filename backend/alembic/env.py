@@ -20,12 +20,12 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# Add backend directory to sys.path so we can import src
+# Add backend directory to sys.path so we can import app
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 load_dotenv()
 
-from src.db.models import Base
-from src.core.config import settings
+from app.db.models import Base
+from app.core.config import settings
 
 # add your model's MetaData object here
 # for 'autogenerate' support
