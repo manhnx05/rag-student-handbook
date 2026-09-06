@@ -1,0 +1,17 @@
+[
+  {
+    "id": "q001",
+    "question": "Điều kiện xét tốt nghiệp của sinh viên là gì?",
+    "source_topics": ["điều kiện xét tốt nghiệp"]
+  },
+  {
+    "id": "q002",
+    "question": "Sinh viên liên hệ Phòng Công tác sinh viên bằng cách nào?",
+    "source_topics": ["phòng công tác sinh viên", "liên hệ"]
+  },
+  {
+    "id": "q003",
+    "question": "Quy định về đăng ký học lại được trình bày ở đâu?",
+    "source_topics": ["đăng ký học lại", "học cải thiện điểm"]
+  }
+]
