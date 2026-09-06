@@ -53,7 +53,7 @@ os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:3000")
 
 from fastapi.testclient import TestClient
-from src.utils.auth_utils import create_access_token
+from app.utils.auth_utils import create_access_token
 
 
 # ---------------------------------------------------------------------------
@@ -65,8 +65,8 @@ def _build_app():
     """Build the FastAPI app with startup lifespan mocked out."""
     from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
-    from src.api.routes import auth, chat, health, ingest
-    from src.core.config import settings
+    from app.api.routes import auth, chat, health, ingest
+    from app.core.config import settings
 
     app = FastAPI()
     app.add_middleware(
@@ -141,7 +141,7 @@ class TestAuthRoutes:
 
     def _mock_auth_service(self, method: str, return_value=None, side_effect=None):
         """Patch AuthService.<method> for the duration of one request."""
-        target = f"src.services.auth_service.AuthService.{method}"
+        target = f"app.services.auth_service.AuthService.{method}"
         if side_effect:
             return patch(target, new_callable=AsyncMock, side_effect=side_effect)
         return patch(target, new_callable=AsyncMock, return_value=return_value)
@@ -228,11 +228,11 @@ class TestChatRoutes:
         self.headers = _auth_headers(self.token)
 
     def _override_get_current_user(self, user_id: str = "user-123"):
-        from src.utils.auth_utils import get_current_user
+        from app.utils.auth_utils import get_current_user
         self.app.dependency_overrides[get_current_user] = lambda: user_id
 
     def _override_chat_service(self, mock_svc):
-        from src.api.routes.chat import get_chat_service
+        from app.api.routes.chat import get_chat_service
         self.app.dependency_overrides[get_chat_service] = lambda: mock_svc
 
     def _clear_overrides(self):
@@ -333,7 +333,7 @@ class TestChatRoutes:
         mock_svc.get_session_history = AsyncMock(return_value=[])
         mock_svc.save_message = AsyncMock()
 
-        from src.api.routes.chat import get_orchestrator
+        from app.api.routes.chat import get_orchestrator
         mock_orch = MagicMock()
 
         async def fake_stream(*args, **kwargs):
@@ -358,7 +358,7 @@ class TestChatRoutes:
         mock_svc.get_session_history = AsyncMock(return_value=[])
         mock_svc.save_message = AsyncMock()
 
-        from src.api.routes.chat import get_orchestrator
+        from app.api.routes.chat import get_orchestrator
         mock_orch = MagicMock()
 
         async def fake_stream(*args, **kwargs):
@@ -436,7 +436,7 @@ class TestIngestRoutes:
         return {"file": (filename, io.BytesIO(b"%PDF-1.4 fake"), "application/pdf")}
 
     def _override_admin_user(self, user_id: str = "admin-001"):
-        from src.utils.auth_utils import get_current_admin_user
+        from app.utils.auth_utils import get_current_admin_user
         self.app.dependency_overrides[get_current_admin_user] = lambda: user_id
 
     def _clear_overrides(self):
@@ -451,7 +451,7 @@ class TestIngestRoutes:
         """A valid JWT but is_admin=False should get 403."""
         # Override get_current_admin_user to raise 403
         from fastapi import HTTPException
-        from src.utils.auth_utils import get_current_admin_user
+        from app.utils.auth_utils import get_current_admin_user
 
         def deny():
             raise HTTPException(status_code=403, detail="Admin access required")
@@ -483,8 +483,8 @@ class TestIngestRoutes:
         self._override_admin_user()
 
         with (
-            patch("src.api.routes.ingest.IngestionService.save_upload_file"),
-            patch("src.api.routes.ingest.process_pdf_ingestion_task.delay"),
+            patch("app.api.routes.ingest.IngestionService.save_upload_file"),
+            patch("app.api.routes.ingest.process_pdf_ingestion_task.delay"),
         ):
             resp = self.client.post(
                 "/api/ingest",
@@ -502,7 +502,7 @@ class TestIngestRoutes:
         self._override_admin_user()
 
         with patch(
-            "src.api.routes.ingest.IngestionService.save_upload_file",
+            "app.api.routes.ingest.IngestionService.save_upload_file",
             side_effect=OSError("disk full"),
         ):
             resp = self.client.post(
