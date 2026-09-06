@@ -6,10 +6,10 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Menu, MessageSquare } from 'lucide-react';
 
-import { useChatStream } from '@/features/chat/hooks/useChatStream';
-import { ChatSidebar } from '@/features/chat/components/ChatSidebar';
-import { MessageBubble } from '@/features/chat/components/MessageBubble';
-import { ChatInput } from '@/features/chat/components/ChatInput';
+import { useChatStream } from '@/components/chat/hooks/useChatStream';
+import { ChatSidebar } from '@/components/chat/ChatSidebar';
+import { MessageBubble } from '@/components/chat/MessageBubble';
+import { ChatInput } from '@/components/chat/ChatInput';
 
 export default function ChatPage() {
   const { user, token, logout, loading } = useAuth();
