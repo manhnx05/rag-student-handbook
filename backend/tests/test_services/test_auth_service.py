@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi import HTTPException
-from src.services.auth_service import AuthService
-from src.db.models import User
+from app.services.auth_service import AuthService
+from app.db.models import User
 
 @pytest.fixture
 def mock_db():
@@ -21,8 +21,8 @@ async def test_register_success(auth_service, mock_db):
     mock_result.scalars().first.return_value = None
     mock_db.execute.return_value = mock_result
     
-    with patch("src.services.auth_service.get_password_hash", return_value="hashed_password"), \
-         patch("src.services.auth_service.create_access_token", return_value="test_token"):
+    with patch("app.services.auth_service.get_password_hash", return_value="hashed_password"), \
+         patch("app.services.auth_service.create_access_token", return_value="test_token"):
         
         response = await auth_service.register("test@example.com", "password123")
         
@@ -51,8 +51,8 @@ async def test_login_success(auth_service, mock_db):
     mock_result.scalars().first.return_value = user
     mock_db.execute.return_value = mock_result
     
-    with patch("src.services.auth_service.verify_password", return_value=True), \
-         patch("src.services.auth_service.create_access_token", return_value="test_token"):
+    with patch("app.services.auth_service.verify_password", return_value=True), \
+         patch("app.services.auth_service.create_access_token", return_value="test_token"):
         
         response = await auth_service.login("test@example.com", "password123")
         
@@ -66,7 +66,7 @@ async def test_login_invalid_password(auth_service, mock_db):
     mock_result.scalars().first.return_value = user
     mock_db.execute.return_value = mock_result
     
-    with patch("src.services.auth_service.verify_password", return_value=False):
+    with patch("app.services.auth_service.verify_password", return_value=False):
         with pytest.raises(HTTPException) as exc_info:
             await auth_service.login("test@example.com", "wrongpassword")
             
