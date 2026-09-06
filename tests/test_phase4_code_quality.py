@@ -77,13 +77,13 @@ def _ast_has_traceback_print_exc(source: str) -> bool:
 class TestDeadCodeRemoval:
     def test_state_manager_deleted(self):
         try:
-            spec = importlib.util.find_spec("src.orchestration.state_manager")
+            spec = importlib.util.find_spec("app.orchestration.state_manager")
             assert spec is None
         except ModuleNotFoundError:
             pass # Parent module deleted, which is also fine
 
     def test_state_manager_file_not_on_disk(self):
-        path = BACKEND / "src" / "orchestration" / "state_manager.py"
+        path = BACKEND / "app" / "orchestration" / "state_manager.py"
         assert not path.exists(), f"state_manager.py still exists at {path}"
 
 
@@ -92,27 +92,27 @@ class TestDeadCodeRemoval:
 # ===========================================================================
 class TestChatServicePagination:
     def test_get_user_sessions_has_limit_param(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
         sig = inspect.signature(ChatService.get_user_sessions)
         assert "limit" in sig.parameters, "get_user_sessions missing 'limit' parameter"
 
     def test_get_user_sessions_has_offset_param(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
         sig = inspect.signature(ChatService.get_user_sessions)
         assert "offset" in sig.parameters, "get_user_sessions missing 'offset' parameter"
 
     def test_get_user_sessions_limit_default_50(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
         sig = inspect.signature(ChatService.get_user_sessions)
         assert sig.parameters["limit"].default == 50
 
     def test_get_user_sessions_offset_default_0(self):
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
         sig = inspect.signature(ChatService.get_user_sessions)
         assert sig.parameters["offset"].default == 0
 
     def test_session_title_max_len_constant(self):
-        from src.services.chat_service import SESSION_TITLE_MAX_LEN
+        from app.services.chat_service import SESSION_TITLE_MAX_LEN
         assert SESSION_TITLE_MAX_LEN == 60, (
             f"Expected SESSION_TITLE_MAX_LEN=60, got {SESSION_TITLE_MAX_LEN}"
         )
@@ -123,7 +123,7 @@ class TestChatServicePagination:
 # ===========================================================================
 class TestSessionTitleTruncation:
     def _make_service(self) -> "ChatService":
-        from src.services.chat_service import ChatService
+        from app.services.chat_service import ChatService
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
@@ -134,7 +134,7 @@ class TestSessionTitleTruncation:
         return service.db.add.call_args[0][0]
 
     def test_long_question_truncated_with_ellipsis(self):
-        from src.services.chat_service import SESSION_TITLE_MAX_LEN
+        from app.services.chat_service import SESSION_TITLE_MAX_LEN
         svc = self._make_service()
         long_q = "X" * (SESSION_TITLE_MAX_LEN + 50)
 
@@ -155,7 +155,7 @@ class TestSessionTitleTruncation:
         assert session.title == short_q
 
     def test_exact_max_len_not_truncated(self):
-        from src.services.chat_service import SESSION_TITLE_MAX_LEN
+        from app.services.chat_service import SESSION_TITLE_MAX_LEN
         svc = self._make_service()
         exact_q = "A" * SESSION_TITLE_MAX_LEN
 
@@ -167,7 +167,7 @@ class TestSessionTitleTruncation:
 
     def test_limit_capped_internally(self):
         """get_user_sessions must cap limit at 200 to prevent huge DB queries."""
-        src = (BACKEND / "src" / "services" / "chat_service.py").read_text()
+        src = (BACKEND / "app" / "services" / "chat_service.py").read_text()
         # The capping logic must be present
         assert "min(limit, 200)" in src or "limit = min" in src, (
             "ChatService.get_user_sessions must cap limit at 200"
@@ -179,18 +179,18 @@ class TestSessionTitleTruncation:
 # ===========================================================================
 class TestChatRoutePagination:
     def test_get_sessions_has_limit_query_param(self):
-        from src.api.routes.chat import get_sessions
+        from app.api.routes.chat import get_sessions
         sig = inspect.signature(get_sessions)
         assert "limit" in sig.parameters, "GET /sessions route missing 'limit' query param"
 
     def test_get_sessions_has_offset_query_param(self):
-        from src.api.routes.chat import get_sessions
+        from app.api.routes.chat import get_sessions
         sig = inspect.signature(get_sessions)
         assert "offset" in sig.parameters, "GET /sessions route missing 'offset' query param"
 
     def test_get_sessions_passes_limit_offset_to_service(self):
         """When limit/offset are passed, they flow through to the service call."""
-        src = (BACKEND / "src" / "api" / "routes" / "chat.py").read_text()
+        src = (BACKEND / "app" / "api" / "routes" / "chat.py").read_text()
         assert "limit=limit" in src, "chat route must pass limit= to chat_service"
         assert "offset=offset" in src, "chat route must pass offset= to chat_service"
 
@@ -206,25 +206,25 @@ class TestNoBarePrints:
         )
 
     def test_vector_store_no_print(self):
-        self._check_no_print("src/memory/vector_store.py")
+        self._check_no_print("app/vector_store/vector_store.py")
 
     def test_graph_store_no_print(self):
-        self._check_no_print("src/memory/graph_store.py")
+        self._check_no_print("app/knowledge_graph/graph_store.py")
 
     def test_ingest_service_no_print(self):
-        self._check_no_print("src/services/ingest_service.py")
+        self._check_no_print("app/services/ingest_service.py")
 
     def test_document_loader_no_print(self):
-        self._check_no_print("src/knowledge/document_loader.py")
+        self._check_no_print("app/ingestion/document_loader.py")
 
     def test_handbook_rag_pipeline_no_print(self):
-        self._check_no_print("src/knowledge/handbook_rag_pipeline.py")
+        self._check_no_print("app/ingestion/handbook_rag_pipeline.py")
 
     def test_chat_route_no_traceback_print_exc(self):
-        src = (BACKEND / "src/api/routes/chat.py").read_text()
+        src = (BACKEND / "app/api/routes/chat.py").read_text()
         assert not _ast_has_traceback_print_exc(src), (
             "chat.py must not call traceback.print_exc() — use logger.exception()"
         )
 
     def test_auth_service_no_print(self):
-        self._check_no_print("src/services/auth_service.py")
+        self._check_no_print("app/services/auth_service.py")
