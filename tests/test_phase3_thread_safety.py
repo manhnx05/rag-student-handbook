@@ -42,22 +42,22 @@ import pytest
 # ===========================================================================
 class TestLockPresence:
     def test_vector_store_has_lock(self):
-        from src.memory import vector_store as mod
+        from app.vector_store import vector_store as mod
         assert hasattr(mod, "_lock"), "vector_store module must have a '_lock' attribute"
         assert isinstance(mod._lock, type(threading.Lock()))
 
     def test_graph_store_has_lock(self):
-        from src.memory import graph_store as mod
+        from app.knowledge_graph import graph_store as mod
         assert hasattr(mod, "_graph_store_lock")
         assert isinstance(mod._graph_store_lock, type(threading.Lock()))
 
     def test_embeddings_has_lock(self):
-        from src.memory import embeddings as mod
+        from app.embedding import embeddings as mod
         assert hasattr(mod, "_embedding_lock")
         assert isinstance(mod._embedding_lock, type(threading.Lock()))
 
     def test_qdrant_client_has_lock(self):
-        from src.memory import qdrant_client as mod
+        from app.vector_store import qdrant_client as mod
         assert hasattr(mod, "_client_lock")
         assert isinstance(mod._client_lock, type(threading.Lock()))
 
@@ -78,16 +78,16 @@ class TestDoubleCheckedLocking:
         assert "with " in src, f"{module_path}: missing 'with' lock context manager"
 
     def test_vector_store_double_checked(self):
-        self._check_module("src/memory/vector_store.py")
+        self._check_module("app/vector_store/vector_store.py")
 
     def test_graph_store_double_checked(self):
-        self._check_module("src/memory/graph_store.py")
+        self._check_module("app/knowledge_graph/graph_store.py")
 
     def test_embeddings_double_checked(self):
-        self._check_module("src/memory/embeddings.py")
+        self._check_module("app/embedding/embeddings.py")
 
     def test_qdrant_client_double_checked(self):
-        self._check_module("src/memory/qdrant_client.py")
+        self._check_module("app/vector_store/qdrant_client.py")
 
 
 # ===========================================================================
@@ -95,19 +95,19 @@ class TestDoubleCheckedLocking:
 # ===========================================================================
 class TestResetFunctions:
     def test_vector_store_reset_exists(self):
-        from src.memory.vector_store import reset_vector_store
+        from app.vector_store.vector_store import reset_vector_store
         assert callable(reset_vector_store)
 
     def test_graph_store_reset_exists(self):
-        from src.memory.graph_store import reset_graph_store
+        from app.knowledge_graph.graph_store import reset_graph_store
         assert callable(reset_graph_store)
 
     def test_embeddings_reset_exists(self):
-        from src.memory.embeddings import reset_embedding_model
+        from app.embedding.embeddings import reset_embedding_model
         assert callable(reset_embedding_model)
 
     def test_qdrant_client_reset_exists(self):
-        from src.memory.qdrant_client import reset_qdrant_client
+        from app.vector_store.qdrant_client import reset_qdrant_client
         assert callable(reset_qdrant_client)
 
 
@@ -121,7 +121,7 @@ class TestConcurrentSingletonConstruction:
     """
 
     def test_vector_store_constructed_once_under_concurrency(self):
-        import src.memory.vector_store as mod
+        import app.vector_store.vector_store as mod
 
         # Reset before test
         mod.reset_vector_store()
@@ -168,7 +168,7 @@ class TestConcurrentSingletonConstruction:
         mod.reset_vector_store()
 
     def test_embeddings_constructed_once_under_concurrency(self):
-        import src.memory.embeddings as mod
+        import app.embedding.embeddings as mod
 
         mod.reset_embedding_model()
         construction_count = 0
@@ -180,7 +180,7 @@ class TestConcurrentSingletonConstruction:
         results = []
 
         def worker():
-            with patch("src.memory.embeddings.OpenAIEmbeddings") as MockEmb:
+            with patch("app.embedding.embeddings.OpenAIEmbeddings") as MockEmb:
                 MockEmb.return_value = MagicMock()
                 instance = mod.get_embedding_model()
                 results.append(id(instance))
@@ -192,7 +192,7 @@ class TestConcurrentSingletonConstruction:
         call_results = []
         call_errors = []
 
-        with patch("src.memory.embeddings.GoogleGenerativeAIEmbeddings", return_value=MagicMock()):
+        with patch("app.embedding.embeddings.GoogleGenerativeAIEmbeddings", return_value=MagicMock()):
             def worker2():
                 try:
                     obj = mod.get_embedding_model()
@@ -216,7 +216,7 @@ class TestConcurrentSingletonConstruction:
 
     def test_reset_allows_reconstruction(self):
         """After reset, the next call should create a fresh instance."""
-        import src.memory.vector_store as mod
+        import app.vector_store.vector_store as mod
 
         mod.reset_vector_store()
         assert mod._instance is None
