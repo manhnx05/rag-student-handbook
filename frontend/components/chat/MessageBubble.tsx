@@ -78,19 +78,19 @@ export const MessageBubble = React.memo((props: MessageBubbleProps) => {
               </ReactMarkdown>
             ) : (
               <span className="flex items-center gap-1 h-6">
-                <motion.span 
-                  animate={{ y: [0, -4, 0] }} 
-                  transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} 
+                <motion.span
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
                   className="w-2 h-2 bg-gray-400 rounded-full"
                 />
-                <motion.span 
-                  animate={{ y: [0, -4, 0] }} 
-                  transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} 
+                <motion.span
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
                   className="w-2 h-2 bg-gray-400 rounded-full"
                 />
-                <motion.span 
-                  animate={{ y: [0, -4, 0] }} 
-                  transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} 
+                <motion.span
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
                   className="w-2 h-2 bg-gray-400 rounded-full"
                 />
               </span>
