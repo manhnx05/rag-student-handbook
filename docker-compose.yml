@@ -31,7 +31,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -58,7 +58,7 @@ services:
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
-      - ./infra/neo4j/init.cypher:/var/lib/neo4j/import/init.cypher
+      - ./docker/infra/neo4j/init.cypher:/var/lib/neo4j/import/init.cypher
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
       interval: 15s
@@ -76,7 +76,7 @@ services:
       - "6336:6334"   # gRPC (host:container)
     volumes:
       - qdrant_data:/qdrant/storage
-      - ./infra/qdrant/config.yaml:/qdrant/config/production.yaml:ro
+      - ./docker/infra/qdrant/config.yaml:/qdrant/config/production.yaml:ro
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET / HTTP/1.0\\r\\n\\r\\n\" >&3 && cat <&3 | grep -q 200'"]
       interval: 10s
@@ -229,7 +229,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
       interval: 30s
