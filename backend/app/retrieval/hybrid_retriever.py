@@ -12,8 +12,10 @@ from typing import List
 
 from app.vector_store.vector_store import get_vector_store
 from app.knowledge_graph.graph_store import get_graph_store
+from app.citation.generator import build_citations, format_citations
 from app.core.config import settings
 from app.core.logger import get_logger
+from app.retrieval.reranker import RetrievedDocument, rerank_documents
 
 logger = get_logger(__name__)
 
@@ -47,8 +49,22 @@ async def _do_vector_search(query: str, top_k: int) -> str:
         vector_store = await get_vector_store()
         results = await vector_store.query(query, top_k=top_k)
         documents = results.get("documents", [[]])[0]
-        if documents:
-            return "\n\n---\n\n".join(documents)
+        metadatas = results.get("metadatas", [[]])[0]
+        retrieved: list[RetrievedDocument] = [
+            {
+                "content": content,
+                "metadata": metadata if index < len(metadatas) else {},
+                "vector_rank": index,
+            }
+            for index, (content, metadata) in enumerate(
+                zip(documents, metadatas, strict=False)
+            )
+        ]
+        ranked = rerank_documents(query, retrieved, top_k=top_k)
+        if ranked:
+            context = "\n\n---\n\n".join(document["content"] for document in ranked)
+            citations = format_citations(build_citations(ranked))
+            return f"{context}\n\n{citations}" if citations else context
     except Exception as exc:
         logger.warning("Vector search failed: %s", exc)
     return ""
