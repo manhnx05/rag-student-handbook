@@ -58,13 +58,24 @@ class AuthService:
         }
 
     async def google_auth(self, credential: str):
+        if not settings.GOOGLE_CLIENT_ID:
+            logger.error("Google authentication is not configured")
+            raise HTTPException(
+                status_code=503, detail="Google authentication is not configured"
+            )
+
         try:
-            idinfo = id_token.verify_oauth2_token(credential, google_requests.Request())
+            idinfo = id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request(),
+                audience=settings.GOOGLE_CLIENT_ID,
+            )
             email = idinfo.get("email")
-            if not email:
-                raise ValueError("Email not provided by Google")
+            if not email or idinfo.get("email_verified") is not True:
+                raise ValueError("Google account email is not verified")
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=f"Invalid Google token: {str(e)}")
+            logger.warning("Google token validation failed: %s", e)
+            raise HTTPException(status_code=400, detail="Invalid Google token") from e
 
         result = await self.db.execute(select(User).where(User.email == email))
         user = result.scalars().first()
