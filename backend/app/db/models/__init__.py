@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from datetime import timezone
-from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.database import Base
@@ -52,3 +52,34 @@ class ChatMessage(Base):
     created_at = Column(DateTime(timezone=True), default=_now_utc)
 
     session = relationship("ChatSession", back_populates="messages")
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    filename = Column(String, nullable=False)
+    content_hash = Column(String, unique=True, nullable=False)
+    version = Column(Integer, nullable=False, default=1)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now_utc)
+
+
+class IngestionJob(Base):
+    __tablename__ = "ingestion_jobs"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    document_id = Column(String, ForeignKey("documents.id"), nullable=False)
+    status = Column(String, nullable=False, default="queued", index=True)
+    chunks_count = Column(Integer, nullable=False, default=0)
+    entities_count = Column(Integer, nullable=False, default=0)
+    relationships_count = Column(Integer, nullable=False, default=0)
+    error_message = Column(Text, nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_now_utc)
+
+    document = relationship("Document")
