@@ -94,6 +94,30 @@ async def ingest_documents(
         ) from exc
 
 
+@router.get("/ingest/jobs/{job_id}", summary="Get an ingestion job status")
+async def get_ingestion_job(
+    job_id: str,
+    _admin_id: str = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    job = await db.get(IngestionJob, job_id)
+    if job is None or job.created_by != _admin_id:
+        raise HTTPException(status_code=404, detail="Ingestion job not found")
+
+    return {
+        "id": job.id,
+        "document_id": job.document_id,
+        "status": job.status,
+        "chunks_count": job.chunks_count,
+        "entities_count": job.entities_count,
+        "relationships_count": job.relationships_count,
+        "error_message": job.error_message,
+        "created_at": job.created_at.isoformat() if job.created_at else None,
+        "started_at": job.started_at.isoformat() if job.started_at else None,
+        "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+    }
+
+
 async def _sha256_file(file_path: str) -> str:
     digest = hashlib.sha256()
 
