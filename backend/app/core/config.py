@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # Gemini
     GEMINI_API_KEY: str
     EMBEDDING_MODEL: str = "models/embedding-001"
+    EMBEDDING_DIM: int = 768
     LLM_MODEL: str = "gemini-1.5-flash"
     
     # Postgres
@@ -46,6 +47,7 @@ class Settings(BaseSettings):
     
     # Resend
     RESEND_API_KEY: Optional[str] = None
+    GOOGLE_CLIENT_ID: Optional[str] = None
 
     # Frontend URL — used for building password-reset links in emails.
     # Override in production to your actual domain.
@@ -57,6 +59,10 @@ class Settings(BaseSettings):
     # CORS — comma-separated list of allowed origins.
     # Example: "http://localhost:3000,https://myapp.example.com"
     CORS_ORIGINS: str
+
+    # Upload and request safety limits
+    MAX_UPLOAD_SIZE_BYTES: int = 50 * 1024 * 1024
+    MAX_PDF_PAGES: int = 500
 
     @property
     def cors_origins_list(self) -> list[str]:
