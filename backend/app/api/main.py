@@ -7,17 +7,20 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import redis
 from app.api.routes import chat, health, ingest, auth
 from app.core.config import settings
+from app.core.logger import get_logger
 from app.db.database import setup_db, close_db
+
+logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_db()
     try:
-        print("Initializing Redis Semantic Cache...")
+        logger.info("Initializing Redis semantic cache")
         embeddings = GoogleGenerativeAIEmbeddings(model=settings.EMBEDDING_MODEL, google_api_key=settings.GEMINI_API_KEY)
         set_llm_cache(RedisSemanticCache(redis_url=settings.REDIS_URL, embedding=embeddings))
     except Exception as e:
-        print(f"Failed to initialize Semantic Cache: {e}")
+        logger.warning("Failed to initialize semantic cache: %s", e)
     yield
     await close_db()
 
