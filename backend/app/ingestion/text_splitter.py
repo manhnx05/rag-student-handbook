@@ -1,8 +1,11 @@
 import os
 import fitz  # PyMuPDF
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from app.core.config import settings
+from app.core.logger import get_logger
+from app.embedding.embeddings import get_embedding_model
+
+logger = get_logger(__name__)
 
 
 def process_pdf_to_chunks(pdf_path: str):
@@ -17,7 +20,7 @@ def process_pdf_to_chunks(pdf_path: str):
     raw_documents: list[dict[str, Any]] = []
     file_name = os.path.basename(pdf_path)
 
-    print(f"Reading document: {file_name}...")
+    logger.info("Reading document: %s", file_name)
     doc = fitz.open(pdf_path)
     for page_idx, page in enumerate(doc):
         text = page.get_text()
@@ -30,15 +33,15 @@ def process_pdf_to_chunks(pdf_path: str):
                 }
             })
     doc.close()
-    print(f"Successfully extracted {len(raw_documents)} pages.")
+    logger.info("Extracted %d pages from %s", len(raw_documents), file_name)
 
     # Initialize semantic text splitter using Gemini Embeddings
-    print("Initializing Semantic Chunker...")
-    embeddings = GoogleGenerativeAIEmbeddings(model=settings.EMBEDDING_MODEL, google_api_key=settings.GEMINI_API_KEY)
+    logger.info("Initializing semantic chunker with %s", settings.EMBEDDING_MODEL)
+    embeddings = get_embedding_model()
     text_splitter = SemanticChunker(embeddings, breakpoint_threshold_type="percentile")
 
     final_chunks = []
-    print("Processing data chunking...")
+    logger.info("Processing semantic chunks for %s", file_name)
 
     for doc in raw_documents:
         split_texts = text_splitter.split_text(doc["text"])
@@ -50,5 +53,5 @@ def process_pdf_to_chunks(pdf_path: str):
                 "metadata": doc["metadata"]
             })
 
-    print(f"Completed! Generated a total of {len(final_chunks)} chunks.")
+    logger.info("Generated %d chunks from %s", len(final_chunks), file_name)
     return final_chunks
