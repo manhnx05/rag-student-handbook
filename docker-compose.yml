@@ -154,6 +154,7 @@ services:
 
       # ── Email (Resend) ───────────────────────────────────────────────────
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
 
       # ── RAG tuning ──────────────────────────────────────────────────────
       CHUNK_SIZE:    ${CHUNK_SIZE:-500}
