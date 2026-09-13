@@ -9,9 +9,10 @@ Changes vs original:
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import List, Optional, Sequence, Tuple
 
-from sqlalchemy import desc
+from sqlalchemy import desc, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -116,5 +117,10 @@ class ChatService:
         """Persist a single chat message and return the saved instance."""
         msg = ChatMessage(session_id=session_id, role=role, content=content)
         self.db.add(msg)
+        await self.db.execute(
+            update(ChatSession)
+            .where(ChatSession.id == session_id)
+            .values(updated_at=datetime.now(timezone.utc))
+        )
         await self.db.commit()
         return msg
