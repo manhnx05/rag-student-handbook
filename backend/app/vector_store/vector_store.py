@@ -12,9 +12,10 @@ Note: QdrantClient itself is thread-safe for concurrent reads/writes.
 from __future__ import annotations
 
 import threading
+import uuid
 from typing import Optional
 
-from qdrant_client import QdrantClient
+from qdrant_client import AsyncQdrantClient
 from qdrant_client.http import models
 
 from app.core.config import settings
@@ -22,10 +23,6 @@ from app.core.logger import get_logger
 from app.embedding.embeddings import embed_text, embed_texts
 
 logger = get_logger(__name__)
-
-# Embedding dimension for text-embedding-3-small
-_EMBEDDING_DIM = 1536
-
 
 class VectorStore:
     def __init__(self) -> None:
@@ -35,21 +32,37 @@ class VectorStore:
     async def setup(self) -> None:
         """Create the Qdrant collection if it doesn't already exist."""
         try:
-            await self.client.get_collection(self.collection_name)
-            logger.debug("Qdrant collection '%s' already exists", self.collection_name)
+            collection = await self.client.get_collection(self.collection_name)
         except Exception:
             logger.info(
                 "Qdrant collection '%s' not found — creating (dim=%d, cosine)",
                 self.collection_name,
-                _EMBEDDING_DIM,
+                settings.EMBEDDING_DIM,
             )
             await self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=models.VectorParams(
-                    size=_EMBEDDING_DIM,
+                    size=settings.EMBEDDING_DIM,
                     distance=models.Distance.COSINE,
                 ),
             )
+            return
+
+        vectors = collection.config.params.vectors
+        if isinstance(vectors, dict):
+            if len(vectors) != 1:
+                raise ValueError(
+                    f"Qdrant collection '{self.collection_name}' uses named vectors"
+                )
+            vectors = next(iter(vectors.values()))
+        actual_dim = vectors.size
+        if actual_dim != settings.EMBEDDING_DIM:
+            raise ValueError(
+                f"Qdrant collection '{self.collection_name}' has dimension "
+                f"{actual_dim}, expected {settings.EMBEDDING_DIM} for "
+                f"{settings.EMBEDDING_MODEL}"
+            )
+        logger.debug("Qdrant collection '%s' already exists", self.collection_name)
 
     # ------------------------------------------------------------------
     # Write operations
@@ -70,9 +83,9 @@ class VectorStore:
 
         points = [
             models.PointStruct(
-                id=ids[i],
+                id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.collection_name}:{ids[i]}")),
                 vector=embeddings[i],
-                payload={"content": documents[i], **metadatas[i]},
+                payload={"content": documents[i], "chunk_id": ids[i], **metadatas[i]},
             )
             for i in range(len(chunks))
         ]
@@ -99,10 +112,12 @@ class VectorStore:
 
         ids, documents, metadatas, distances = [], [], [], []
         for point in search_result:
-            ids.append(str(point.id))
             payload = point.payload or {}
+            ids.append(str(payload.get("chunk_id", point.id)))
             documents.append(payload.get("content", ""))
-            metadatas.append({k: v for k, v in payload.items() if k != "content"})
+            metadatas.append(
+                {k: v for k, v in payload.items() if k not in {"content", "chunk_id"}}
+            )
             distances.append(point.score)
 
         return {
