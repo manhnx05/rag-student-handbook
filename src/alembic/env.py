@@ -16,16 +16,15 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-import os
 import sys
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Add backend directory to sys.path so we can import app
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "main" / "python"))
 load_dotenv()
 
 from app.db.models import Base
-from app.core.config import settings
+from app.config import settings
 
 # add your model's MetaData object here
 # for 'autogenerate' support
