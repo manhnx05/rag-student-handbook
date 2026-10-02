@@ -1,351 +1,90 @@
-"""
-ChatService Unit Tests
-=======================
-Tests all business logic in ChatService using a mocked AsyncSession.
-No real database connections are made.
-
-Coverage:
-  - get_user_sessions(): returns sessions in order, respects limit/offset/cap
-  - get_session_if_owned(): returns session when owned, None when not
-  - create_session(): correct title truncation, returns UUID string
-  - get_session_messages(): returns messages in order
-  - get_session_history(): returns (role, content) tuples
-  - save_message(): persists message, returns ChatMessage object
-"""
 from __future__ import annotations
 
 import asyncio
-import os
-import pathlib
-import sys
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, call
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
-# ---------------------------------------------------------------------------
-# Bootstrap
-# ---------------------------------------------------------------------------
-BACKEND = pathlib.Path(__file__).parent.parent / "backend"
-sys.path.insert(0, str(BACKEND))
-
-os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test")
-os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
-os.environ.setdefault("NEO4J_USER", "neo4j")
-os.environ.setdefault("NEO4J_PASSWORD", "password123")
-os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
-os.environ.setdefault("OPENAI_API_KEY", "sk-test")
-os.environ.setdefault("JWT_SECRET_KEY", "supersecretkey1234567890abcdef00")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
-os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000")
+from app.db.models import ChatMessage, ChatSession
+from app.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
 
 
-def _run(coro):
-    return asyncio.run(coro)
-
-
-def _make_session(session_id: str = None, user_id: str = "user-1", title: str = "Hello") -> MagicMock:
-    s = MagicMock()
-    s.id = session_id or str(uuid.uuid4())
-    s.user_id = user_id
-    s.title = title
-    s.created_at = datetime.now(timezone.utc)
-    s.updated_at = datetime.now(timezone.utc)
-    return s
-
-
-def _make_message(session_id: str, role: str, content: str) -> MagicMock:
-    m = MagicMock()
-    m.id = str(uuid.uuid4())
-    m.session_id = session_id
-    m.role = role
-    m.content = content
-    m.created_at = datetime.now(timezone.utc)
-    return m
-
-
-def _make_db_returning(items) -> AsyncMock:
-    """Return a mock DB that yields `items` from result.scalars().all()."""
-    db = AsyncMock()
+def _db_with_result(items):
     scalars = MagicMock()
     scalars.all.return_value = items
     scalars.first.return_value = items[0] if items else None
     result = MagicMock()
     result.scalars.return_value = scalars
+    db = AsyncMock()
     db.execute = AsyncMock(return_value=result)
     db.add = MagicMock()
     db.commit = AsyncMock()
+    db.delete = AsyncMock()
     return db
 
 
-# ===========================================================================
-# get_user_sessions()
-# ===========================================================================
-class TestGetUserSessions:
-    def test_returns_list_of_sessions(self):
-        from app.services.chat_service import ChatService
-
-        sessions = [_make_session(title=f"Session {i}") for i in range(3)]
-        db = _make_db_returning(sessions)
-        svc = ChatService(db)
-
-        result = _run(svc.get_user_sessions("user-1"))
-        assert len(result) == 3
-
-    def test_returns_empty_list_when_no_sessions(self):
-        from app.services.chat_service import ChatService
-
-        db = _make_db_returning([])
-        svc = ChatService(db)
-
-        result = _run(svc.get_user_sessions("user-1"))
-        assert result == []
-
-    def test_limit_capped_at_200(self):
-        """Even if caller passes limit=999, it must be capped at 200 before the DB query."""
-        from app.services.chat_service import ChatService
-
-        db = _make_db_returning([])
-        svc = ChatService(db)
-        _run(svc.get_user_sessions("user-1", limit=999))
-
-        # Verify the query was constructed with .limit(200), not .limit(999)
-        # We check via the actual source code (already tested in Phase 4);
-        # here we just confirm it doesn't raise and clamps silently.
-        assert True  # no exception = pass
-
-    def test_accepts_custom_limit_and_offset(self):
-        from app.services.chat_service import ChatService
-
-        sessions = [_make_session(title=f"S{i}") for i in range(10)]
-        db = _make_db_returning(sessions[:5])
-        svc = ChatService(db)
-
-        result = _run(svc.get_user_sessions("user-1", limit=5, offset=0))
-        assert len(result) == 5
-
-
-# ===========================================================================
-# get_session_if_owned()
-# ===========================================================================
-class TestGetSessionIfOwned:
-    def test_returns_session_when_owned(self):
-        from app.services.chat_service import ChatService
-
-        session = _make_session(session_id="sess-1", user_id="user-1")
-        db = _make_db_returning([session])
-        svc = ChatService(db)
-
-        result = _run(svc.get_session_if_owned("sess-1", "user-1"))
-        assert result is session
-
-    def test_returns_none_when_not_found(self):
-        from app.services.chat_service import ChatService
-
-        db = _make_db_returning([])
-        svc = ChatService(db)
-
-        result = _run(svc.get_session_if_owned("missing-sess", "user-1"))
-        assert result is None
-
-
-# ===========================================================================
-# create_session()
-# ===========================================================================
-class TestCreateSession:
-    def _make_db(self) -> AsyncMock:
-        db = AsyncMock()
-        db.add = MagicMock()
-        db.commit = AsyncMock()
-        return db
-
-    def _get_created_session(self, db: AsyncMock) -> MagicMock:
-        return db.add.call_args[0][0]
-
-    def test_returns_uuid_string(self):
-        from app.services.chat_service import ChatService
-
-        db = self._make_db()
-        svc = ChatService(db)
-        result = _run(svc.create_session("user-1", "Hello"))
-
-        assert isinstance(result, str)
-        # Must be a valid UUID
-        uuid.UUID(result)  # raises if invalid
-
-    def test_short_question_title_unchanged(self):
-        from app.services.chat_service import ChatService
-
-        db = self._make_db()
-        svc = ChatService(db)
-        _run(svc.create_session("user-1", "Short question"))
-
-        session = self._get_created_session(db)
-        assert session.title == "Short question"
-
-    def test_long_question_truncated_with_ellipsis(self):
-        from app.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
-
-        db = self._make_db()
-        svc = ChatService(db)
-        long_q = "A" * (SESSION_TITLE_MAX_LEN + 20)
-        _run(svc.create_session("user-1", long_q))
-
-        session = self._get_created_session(db)
-        assert session.title.endswith("…")
-        assert len(session.title) == SESSION_TITLE_MAX_LEN + 1  # +1 for ellipsis
-
-    def test_exact_max_len_not_truncated(self):
-        from app.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
-
-        db = self._make_db()
-        svc = ChatService(db)
-        exact_q = "B" * SESSION_TITLE_MAX_LEN
-        _run(svc.create_session("user-1", exact_q))
-
-        session = self._get_created_session(db)
-        assert session.title == exact_q
-        assert not session.title.endswith("…")
-
-    def test_session_user_id_set_correctly(self):
-        from app.services.chat_service import ChatService
-
-        db = self._make_db()
-        svc = ChatService(db)
-        _run(svc.create_session("user-abc", "What is the rule?"))
-
-        session = self._get_created_session(db)
-        assert session.user_id == "user-abc"
-
-    def test_commit_called(self):
-        from app.services.chat_service import ChatService
-
-        db = self._make_db()
-        svc = ChatService(db)
-        _run(svc.create_session("user-1", "Q"))
-
-        db.commit.assert_awaited_once()
-
-
-# ===========================================================================
-# get_session_messages()
-# ===========================================================================
-class TestGetSessionMessages:
-    def test_returns_messages_in_order(self):
-        from app.services.chat_service import ChatService
-
-        msgs = [
-            _make_message("sess-1", "user", "Hello"),
-            _make_message("sess-1", "ai", "Hi there"),
-        ]
-        db = _make_db_returning(msgs)
-        svc = ChatService(db)
-
-        result = _run(svc.get_session_messages("sess-1"))
-        assert len(result) == 2
-        assert result[0].role == "user"
-        assert result[1].role == "ai"
-
-    def test_returns_empty_for_no_messages(self):
-        from app.services.chat_service import ChatService
-
-        db = _make_db_returning([])
-        svc = ChatService(db)
-
-        result = _run(svc.get_session_messages("empty-sess"))
-        assert result == []
-
-
-# ===========================================================================
-# get_session_history()
-# ===========================================================================
-class TestGetSessionHistory:
-    def test_returns_role_content_tuples(self):
-        from app.services.chat_service import ChatService
-
-        msgs = [
-            _make_message("sess-1", "user", "What is attendance?"),
-            _make_message("sess-1", "ai", "Attendance is 80%..."),
-        ]
-        db = _make_db_returning(msgs)
-        svc = ChatService(db)
-
-        history = _run(svc.get_session_history("sess-1"))
-        assert history == [
-            ("user", "What is attendance?"),
-            ("ai", "Attendance is 80%..."),
-        ]
-
-    def test_empty_session_returns_empty_list(self):
-        from app.services.chat_service import ChatService
-
-        db = _make_db_returning([])
-        svc = ChatService(db)
-
-        result = _run(svc.get_session_history("new-sess"))
-        assert result == []
-
-
-# ===========================================================================
-# save_message()
-# ===========================================================================
-class TestSaveMessage:
-    def test_saves_user_message(self):
-        from app.services.chat_service import ChatService
-
-        db = AsyncMock()
-        db.add = MagicMock()
-        db.commit = AsyncMock()
-        svc = ChatService(db)
-
-        result = _run(svc.save_message("sess-1", "user", "Hello"))
-
-        db.add.assert_called_once()
-        db.commit.assert_awaited_once()
-        added = db.add.call_args[0][0]
-        assert added.session_id == "sess-1"
-        assert added.role == "user"
-        assert added.content == "Hello"
-
-    def test_saves_ai_message(self):
-        from app.services.chat_service import ChatService
-
-        db = AsyncMock()
-        db.add = MagicMock()
-        db.commit = AsyncMock()
-        svc = ChatService(db)
-
-        _run(svc.save_message("sess-1", "ai", "Here is the answer..."))
-
-        added = db.add.call_args[0][0]
-        assert added.role == "ai"
-        assert added.content == "Here is the answer..."
-
-# ===========================================================================
-# delete_session()
-# ===========================================================================
-class TestDeleteSession:
-    def test_deletes_session_when_owned(self):
-        from app.services.chat_service import ChatService
-
-        session = _make_session(session_id="sess-1", user_id="user-1")
-        db = _make_db_returning([session])
-        db.delete = AsyncMock()
-        svc = ChatService(db)
-
-        result = _run(svc.delete_session("sess-1", "user-1"))
-        assert result is True
-        db.delete.assert_awaited_once_with(session)
-        db.commit.assert_awaited_once()
-
-    def test_returns_false_when_not_found(self):
-        from app.services.chat_service import ChatService
-
-        db = _make_db_returning([])
-        db.delete = AsyncMock()
-        svc = ChatService(db)
-
-        result = _run(svc.delete_session("missing", "user-1"))
-        assert result is False
-        db.delete.assert_not_called()
+def test_get_sessions_passes_capped_pagination_to_query():
+    db = _db_with_result([])
+    sessions = asyncio.run(ChatService(db).get_sessions(limit=999, offset=5))
+    assert sessions == []
+    statement = db.execute.await_args.args[0]
+    assert statement._limit_clause.value == 200
+    assert statement._offset_clause.value == 5
+
+
+def test_get_session_returns_matching_session():
+    session = SimpleNamespace(id="session-1")
+    db = _db_with_result([session])
+    assert asyncio.run(ChatService(db).get_session("session-1")) is session
+
+
+def test_create_session_has_anonymous_owner_and_truncated_title():
+    db = _db_with_result([])
+    question = "Q" * (SESSION_TITLE_MAX_LEN + 20)
+    session_id = asyncio.run(ChatService(db).create_session(question))
+
+    uuid.UUID(session_id)
+    session = db.add.call_args.args[0]
+    assert isinstance(session, ChatSession)
+    assert session.user_id is None
+    assert session.title == "Q" * SESSION_TITLE_MAX_LEN + "…"
+    db.commit.assert_awaited_once()
+
+
+def test_create_session_keeps_short_question_as_title():
+    db = _db_with_result([])
+    asyncio.run(ChatService(db).create_session("A short question"))
+    assert db.add.call_args.args[0].title == "A short question"
+
+
+def test_get_session_messages_returns_query_results():
+    message = SimpleNamespace(content="Answer")
+    db = _db_with_result([message])
+    assert asyncio.run(ChatService(db).get_session_messages("session-1")) == [
+        message
+    ]
+
+
+def test_save_message_persists_and_returns_message():
+    db = _db_with_result([])
+    message = asyncio.run(
+        ChatService(db).save_message("session-1", "user", "Hello")
+    )
+    assert isinstance(message, ChatMessage)
+    assert message.session_id == "session-1"
+    assert message.role == "user"
+    assert message.content == "Hello"
+    db.add.assert_called_once_with(message)
+    db.commit.assert_awaited_once()
+
+
+def test_chat_session_user_id_is_nullable():
+    assert ChatSession.__table__.columns["user_id"].nullable is True
+    for name in ("created_at", "updated_at"):
+        column = ChatSession.__table__.columns[name]
+        assert column.type.timezone is True
+
+
+def test_message_timestamp_is_timezone_aware():
+    assert ChatMessage.__table__.columns["created_at"].type.timezone is True

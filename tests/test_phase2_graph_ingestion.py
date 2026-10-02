@@ -29,7 +29,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 # ---------------------------------------------------------------------------
 # Bootstrap
 # ---------------------------------------------------------------------------
-BACKEND = pathlib.Path(__file__).parent.parent / "backend"
+BACKEND = pathlib.Path(__file__).parent.parent / "src" / "main" / "python"
 sys.path.insert(0, str(BACKEND))
 
 os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test")
@@ -37,8 +37,7 @@ os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
 os.environ.setdefault("NEO4J_USER", "neo4j")
 os.environ.setdefault("NEO4J_PASSWORD", "password123")
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
-os.environ.setdefault("OPENAI_API_KEY", "sk-test")
-os.environ.setdefault("JWT_SECRET_KEY", "supersecretkey1234567890abcdef00")
+os.environ.setdefault("GEMINI_API_KEY", "sk-test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
 os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000")
 os.environ.setdefault("GRAPH_INGESTION_ENABLED", "false")  # default off in tests
@@ -65,34 +64,32 @@ FAKE_CHUNKS = [
 # ===========================================================================
 class TestConfig:
     def test_graph_ingestion_enabled_field_exists(self):
-        from app.core.config import Settings
+        from app.config import Settings
         s = Settings(
             DATABASE_URL="postgresql://x:x@localhost/x",
             NEO4J_URI="bolt://localhost:7687",
             NEO4J_USER="neo4j",
             NEO4J_PASSWORD="password",
             QDRANT_URL="http://localhost:6333",
-            OPENAI_API_KEY="sk-x",
-            JWT_SECRET_KEY="key",
+            GEMINI_API_KEY="sk-x",
             REDIS_URL="redis://localhost:6379",
-            CORS_ORIGINS="http://localhost:3000",
+            CORS_ORIGINS="http://localhost:8501",
             GRAPH_INGESTION_ENABLED=True,  # explicit to avoid .env override in CI
         )
         assert hasattr(s, "GRAPH_INGESTION_ENABLED")
         assert s.GRAPH_INGESTION_ENABLED is True
 
     def test_graph_ingestion_enabled_can_be_disabled(self):
-        from app.core.config import Settings
+        from app.config import Settings
         s = Settings(
             DATABASE_URL="postgresql://x:x@localhost/x",
             NEO4J_URI="bolt://localhost:7687",
             NEO4J_USER="neo4j",
             NEO4J_PASSWORD="password",
             QDRANT_URL="http://localhost:6333",
-            OPENAI_API_KEY="sk-x",
-            JWT_SECRET_KEY="key",
+            GEMINI_API_KEY="sk-x",
             REDIS_URL="redis://localhost:6379",
-            CORS_ORIGINS="http://localhost:3000",
+            CORS_ORIGINS="http://localhost:8501",
             GRAPH_INGESTION_ENABLED=False,
         )
         assert s.GRAPH_INGESTION_ENABLED is False
@@ -103,18 +100,18 @@ class TestConfig:
 # ===========================================================================
 class TestGraphStoreSafety:
     def test_safe_label_valid_labels_pass_through(self):
-        from app.knowledge_graph.graph_store import _safe_label
+        from app.rag.knowledge_graph.graph_store import _safe_label
         for label in ("Entity", "Person", "Organization", "Department",
                       "Topic", "Rule", "Policy", "Document", "Process"):
             assert _safe_label(label) == label, f"Expected {label} to pass through"
 
     def test_safe_label_unknown_falls_back_to_entity(self):
-        from app.knowledge_graph.graph_store import _safe_label
+        from app.rag.knowledge_graph.graph_store import _safe_label
         assert _safe_label("Unknown") == "Entity"
         assert _safe_label("SomethingElse") == "Entity"
 
     def test_safe_label_injection_attempt_sanitised(self):
-        from app.knowledge_graph.graph_store import _safe_label
+        from app.rag.knowledge_graph.graph_store import _safe_label
         # These must NEVER reach Neo4j as label names
         assert _safe_label("DROP TABLE") == "Entity"
         assert _safe_label("'; MATCH (n) DETACH DELETE n //") == "Entity"
@@ -140,7 +137,7 @@ class TestGraphStoreSafety:
 # ===========================================================================
 class TestGraphIngestionData:
     def test_defaults(self):
-        from app.ingestion.document_loader import GraphIngestionData
+        from app.rag.ingestion.document_loader import GraphIngestionData
         g = GraphIngestionData()
         assert g.chunks_processed == 0
         assert g.chunks_failed == 0
@@ -149,7 +146,7 @@ class TestGraphIngestionData:
         assert g.relationships == []
 
     def test_total_chunks_property(self):
-        from app.ingestion.document_loader import GraphIngestionData
+        from app.rag.ingestion.document_loader import GraphIngestionData
         g = GraphIngestionData(chunks_processed=7, chunks_failed=3)
         assert g.total_chunks == 10
 
@@ -197,7 +194,7 @@ class TestDeduplication:
 # ===========================================================================
 class TestIngestResult:
     def test_default_values(self):
-        from app.ingestion.handbook_rag_pipeline import IngestResult
+        from app.rag.ingestion.handbook_rag_pipeline import IngestResult
         r = IngestResult()
         assert r.chunks_indexed == 0
         assert r.entities_indexed == 0
@@ -206,13 +203,13 @@ class TestIngestResult:
         assert r.graph_ingestion_skipped is False
 
     def test_str_graph_disabled(self):
-        from app.ingestion.handbook_rag_pipeline import IngestResult
+        from app.rag.ingestion.handbook_rag_pipeline import IngestResult
         r = IngestResult(chunks_indexed=5, graph_ingestion_enabled=False)
         assert "chunks=5" in str(r)
         assert "graph=disabled" in str(r)
 
     def test_str_graph_enabled(self):
-        from app.ingestion.handbook_rag_pipeline import IngestResult
+        from app.rag.ingestion.handbook_rag_pipeline import IngestResult
         r = IngestResult(
             chunks_indexed=5, entities_indexed=10, relationships_indexed=4,
             graph_ingestion_enabled=True
@@ -223,7 +220,7 @@ class TestIngestResult:
         assert "relationships=4" in s
 
     def test_str_graph_skipped(self):
-        from app.ingestion.handbook_rag_pipeline import IngestResult
+        from app.rag.ingestion.handbook_rag_pipeline import IngestResult
         r = IngestResult(
             chunks_indexed=5, graph_ingestion_enabled=True, graph_ingestion_skipped=True
         )
@@ -236,81 +233,86 @@ class TestIngestResult:
 class TestRunIngestPipeline:
     def _make_mock_vs(self):
         vs = MagicMock()
-        vs.add_chunks = MagicMock()
-        vs.clear_collection = MagicMock()
+        vs.add_chunks = AsyncMock()
+        vs.clear_collection = AsyncMock()
         return vs
 
-    def test_graph_disabled_only_qdrant(self):
-        from app.ingestion.handbook_rag_pipeline import _run_ingest
+    @pytest.mark.asyncio
+    async def test_graph_disabled_only_qdrant(self):
+        from app.rag.ingestion.handbook_rag_pipeline import _run_ingest
         vs = self._make_mock_vs()
         with (
-            patch("app.ingestion.handbook_rag_pipeline.get_vector_store", return_value=vs),
-            patch("app.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=FAKE_CHUNKS),
-            patch("app.ingestion.handbook_rag_pipeline.settings") as ms,
+            patch("app.rag.ingestion.handbook_rag_pipeline.get_vector_store", new_callable=AsyncMock, return_value=vs),
+            patch("app.rag.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=FAKE_CHUNKS),
+            patch("app.rag.ingestion.handbook_rag_pipeline.settings") as ms,
         ):
             ms.GRAPH_INGESTION_ENABLED = False
-            result = _run_ingest("/fake/test.pdf")
+            result = await _run_ingest("/fake/test.pdf")
 
         assert result.chunks_indexed == 2
         assert result.graph_ingestion_enabled is False
         vs.add_chunks.assert_called_once_with(FAKE_CHUNKS)
         vs.clear_collection.assert_not_called()
 
-    def test_clear_existing_calls_clear_collection(self):
-        from app.ingestion.handbook_rag_pipeline import _run_ingest
+    @pytest.mark.asyncio
+    async def test_clear_existing_calls_clear_collection(self):
+        from app.rag.ingestion.handbook_rag_pipeline import _run_ingest
         vs = self._make_mock_vs()
         with (
-            patch("app.ingestion.handbook_rag_pipeline.get_vector_store", return_value=vs),
-            patch("app.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=FAKE_CHUNKS),
-            patch("app.ingestion.handbook_rag_pipeline.settings") as ms,
+            patch("app.rag.ingestion.handbook_rag_pipeline.get_vector_store", new_callable=AsyncMock, return_value=vs),
+            patch("app.rag.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=FAKE_CHUNKS),
+            patch("app.rag.ingestion.handbook_rag_pipeline.settings") as ms,
         ):
             ms.GRAPH_INGESTION_ENABLED = False
-            _run_ingest("/fake/test.pdf", clear_existing=True)
+            await _run_ingest("/fake/test.pdf", clear_existing=True)
 
         vs.clear_collection.assert_called_once()
 
-    def test_empty_pdf_returns_zero_chunks(self):
-        from app.ingestion.handbook_rag_pipeline import _run_ingest
+    @pytest.mark.asyncio
+    async def test_empty_pdf_returns_zero_chunks(self):
+        from app.rag.ingestion.handbook_rag_pipeline import _run_ingest
         vs = self._make_mock_vs()
         with (
-            patch("app.ingestion.handbook_rag_pipeline.get_vector_store", return_value=vs),
-            patch("app.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=[]),
-            patch("app.ingestion.handbook_rag_pipeline.settings") as ms,
+            patch("app.rag.ingestion.handbook_rag_pipeline.get_vector_store", new_callable=AsyncMock, return_value=vs),
+            patch("app.rag.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=[]),
+            patch("app.rag.ingestion.handbook_rag_pipeline.settings") as ms,
         ):
             ms.GRAPH_INGESTION_ENABLED = False
-            result = _run_ingest("/fake/empty.pdf")
+            result = await _run_ingest("/fake/empty.pdf")
 
         assert result.chunks_indexed == 0
         vs.add_chunks.assert_not_called()
 
-    def test_neo4j_failure_sets_skipped_flag(self):
-        from app.ingestion.handbook_rag_pipeline import _run_ingest
+    @pytest.mark.asyncio
+    async def test_neo4j_failure_sets_skipped_flag(self):
+        from app.rag.ingestion.handbook_rag_pipeline import _run_ingest
         vs = self._make_mock_vs()
         with (
-            patch("app.ingestion.handbook_rag_pipeline.get_vector_store", return_value=vs),
-            patch("app.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=FAKE_CHUNKS),
-            patch("app.ingestion.handbook_rag_pipeline._ingest_graph", side_effect=Exception("Neo4j down")),
-            patch("app.ingestion.handbook_rag_pipeline.settings") as ms,
+            patch("app.rag.ingestion.handbook_rag_pipeline.get_vector_store", new_callable=AsyncMock, return_value=vs),
+            patch("app.rag.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=FAKE_CHUNKS),
+            patch("app.rag.ingestion.handbook_rag_pipeline._ingest_graph", side_effect=Exception("Neo4j down")),
+            patch("app.rag.ingestion.handbook_rag_pipeline.settings") as ms,
         ):
             ms.GRAPH_INGESTION_ENABLED = True
-            result = _run_ingest("/fake/test.pdf")
+            result = await _run_ingest("/fake/test.pdf")
 
         # Qdrant must still be intact
         assert result.chunks_indexed == 2
         assert result.graph_ingestion_skipped is True
         assert result.entities_indexed == 0
 
-    def test_ingest_pdf_returns_int(self):
+    @pytest.mark.asyncio
+    async def test_ingest_pdf_returns_int(self):
         """ingest_pdf() must return an int for backward compat with IngestionService."""
-        from app.ingestion.handbook_rag_pipeline import ingest_pdf
+        from app.rag.ingestion.handbook_rag_pipeline import ingest_pdf
         vs = self._make_mock_vs()
         with (
-            patch("app.ingestion.handbook_rag_pipeline.get_vector_store", return_value=vs),
-            patch("app.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=FAKE_CHUNKS),
-            patch("app.ingestion.handbook_rag_pipeline.settings") as ms,
+            patch("app.rag.ingestion.handbook_rag_pipeline.get_vector_store", new_callable=AsyncMock, return_value=vs),
+            patch("app.rag.ingestion.handbook_rag_pipeline.process_pdf_to_chunks", return_value=FAKE_CHUNKS),
+            patch("app.rag.ingestion.handbook_rag_pipeline.settings") as ms,
         ):
             ms.GRAPH_INGESTION_ENABLED = False
-            count = ingest_pdf("/fake/test.pdf")
+            count = await ingest_pdf("/fake/test.pdf")
 
         assert isinstance(count, int)
         assert count == 2
@@ -324,27 +326,31 @@ class TestIngestionServiceAsync:
         from app.services.ingest_service import IngestionService
         assert inspect.iscoroutinefunction(IngestionService.process_pdf_ingestion)
 
-    def test_process_pdf_ingestion_calls_ingest_pdf(self):
+    @pytest.mark.asyncio
+    async def test_process_pdf_ingestion_calls_ingest_pdf(self):
         from app.services.ingest_service import IngestionService
+        with patch(
+            "app.services.ingest_service.ingest_pdf",
+            new_callable=AsyncMock,
+            return_value=5,
+        ) as mock_ingest:
+            result = await IngestionService.process_pdf_ingestion("/fake/test.pdf")
+            mock_ingest.assert_awaited_once_with(
+                "/fake/test.pdf", clear_existing=False
+            )
+            assert result == 5
 
-        async def _run():
-            with patch(
-                "app.services.ingest_service.ingest_pdf", return_value=5
-            ) as mock_ingest:
-                result = await IngestionService.process_pdf_ingestion("/fake/test.pdf")
-                mock_ingest.assert_called_once_with("/fake/test.pdf", False)
-                assert result == 5
-
-        asyncio.run(_run())
-
-    def test_process_pdf_ingestion_passes_clear_existing(self):
+    @pytest.mark.asyncio
+    async def test_process_pdf_ingestion_passes_clear_existing(self):
         from app.services.ingest_service import IngestionService
-
-        async def _run():
-            with patch(
-                "app.services.ingest_service.ingest_pdf", return_value=3
-            ) as mock_ingest:
-                await IngestionService.process_pdf_ingestion("/fake/test.pdf", clear_existing=True)
-                mock_ingest.assert_called_once_with("/fake/test.pdf", True)
-
-        asyncio.run(_run())
+        with patch(
+            "app.services.ingest_service.ingest_pdf",
+            new_callable=AsyncMock,
+            return_value=3,
+        ) as mock_ingest:
+            await IngestionService.process_pdf_ingestion(
+                "/fake/test.pdf", clear_existing=True
+            )
+            mock_ingest.assert_awaited_once_with(
+                "/fake/test.pdf", clear_existing=True
+            )

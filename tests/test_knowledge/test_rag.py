@@ -1,61 +1,84 @@
+from __future__ import annotations
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
+
 import pytest
-import uuid
-from unittest.mock import patch, MagicMock
-from app.vector_store.vector_store import VectorStore
+from qdrant_client.http import models
 
-@pytest.fixture
-def mock_qdrant_client():
-    with patch('app.vector_store.vector_store.QdrantClient') as mock_client:
-        mock_instance = mock_client.return_value
-        # Setup mock behavior
-        mock_count_result = MagicMock()
-        mock_count_result.count = 2
-        mock_instance.count.return_value = mock_count_result
-        
-        mock_instance.search.return_value = [
-            MagicMock(id=str(uuid.uuid4()), score=0.9, payload={"content": "programming test", "source": "test1.pdf", "page": 1}),
-        ]
-        yield mock_instance
+from app.config import settings
+from app.rag.vectorstore.vector_store import VectorStore
 
-@patch('app.vector_store.vector_store.embed_texts')
-@patch('app.vector_store.vector_store.embed_text')
-def test_vector_store(mock_embed_text, mock_embed_texts, mock_qdrant_client):
-    # Setup embedding mocks
-    mock_embed_texts.return_value = [[0.1]*1536, [0.2]*1536]
-    mock_embed_text.return_value = [0.1]*1536
-    
-    vs = VectorStore()
-    
-    # Test: Collection Initialization
-    mock_qdrant_client.get_collection.assert_called_once()
-    
-    # Test: Add chunks
-    test_chunks = [
+
+@pytest.mark.asyncio
+async def test_vector_store_creates_collection_with_configured_embedding_size():
+    client = AsyncMock()
+    client.get_collections.return_value = SimpleNamespace(collections=[])
+
+    with patch(
+        "app.rag.vectorstore.vector_store.AsyncQdrantClient",
+        return_value=client,
+    ):
+        store = VectorStore()
+
+    await store.setup()
+
+    client.create_collection.assert_awaited_once()
+    request = client.create_collection.await_args.kwargs
+    assert request["vectors_config"].size == settings.EMBEDDING_DIMENSION
+    assert request["vectors_config"].distance is models.Distance.COSINE
+
+
+@pytest.mark.asyncio
+async def test_vector_store_adds_and_queries_chunks_without_blocking_event_loop():
+    client = AsyncMock()
+    point = SimpleNamespace(
+        id="chunk-1",
+        score=0.9,
+        payload={"content": "Graduation requirements", "source": "handbook.pdf", "page": 2},
+    )
+    client.search.return_value = [point]
+    store = VectorStore()
+    store.client = client
+    chunks = [
         {
-            "id": str(uuid.uuid4()),
-            "content": "This is the first test chunk about programming.",
-            "metadata": {"source": "test1.pdf", "page": 1}
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "content": "This is the second test chunk about data science.",
-            "metadata": {"source": "test2.pdf", "page": 2}
+            "id": "chunk-1",
+            "content": "Graduation requirements",
+            "metadata": {"source": "handbook.pdf", "page": 2},
         }
     ]
-    vs.add_chunks(test_chunks)
-    mock_qdrant_client.upsert.assert_called_once()
-    
-    # Test: Query
-    results = vs.query("programming", top_k=1)
-    assert len(results["documents"][0]) == 1, "Should return 1 result"
-    assert "programming" in results["documents"][0][0], "Result should contain 'programming'"
-    
-    # Test: Clear collection
-    vs.clear_collection()
-    mock_qdrant_client.delete_collection.assert_called_once()
-    
-    # Test: Count
-    assert vs.count() == 2
 
-if __name__ == "__main__":
-    pytest.main([__file__])
+    with (
+        patch("app.rag.vectorstore.vector_store.embed_texts", return_value=[[0.1] * 768]),
+        patch("app.rag.vectorstore.vector_store.embed_text", return_value=[0.2] * 768),
+    ):
+        await store.add_chunks(chunks)
+        results = await store.query("graduation", top_k=1)
+
+    client.upsert.assert_awaited_once()
+    assert results["ids"] == [["chunk-1"]]
+    assert results["documents"] == [["Graduation requirements"]]
+    assert results["metadatas"] == [[{"source": "handbook.pdf", "page": 2}]]
+
+
+@pytest.mark.asyncio
+async def test_vector_store_rejects_collection_with_wrong_embedding_dimension():
+    client = AsyncMock()
+    client.get_collections.return_value = SimpleNamespace(
+        collections=[SimpleNamespace(name="student_handbook")]
+    )
+    client.get_collection.return_value = SimpleNamespace(
+        config=SimpleNamespace(
+            params=SimpleNamespace(
+                vectors=models.VectorParams(
+                    size=settings.EMBEDDING_DIMENSION + 1,
+                    distance=models.Distance.COSINE,
+                )
+            )
+        )
+    )
+    store = VectorStore()
+    store.client = client
+
+    with pytest.raises(ValueError, match="EMBEDDING_DIMENSION"):
+        await store.setup()

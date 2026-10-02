@@ -3,10 +3,10 @@ import sys
 import pathlib
 import tempfile
 
-BACKEND = pathlib.Path(__file__).parent.parent.parent / "backend"
+BACKEND = pathlib.Path(__file__).parent.parent.parent / "src" / "main" / "python"
 sys.path.insert(0, str(BACKEND))
 
-from app.ingestion.text_splitter import process_pdf_to_chunks
+from app.rag.splitters.text_splitter import process_pdf_to_chunks
 from pypdf import PdfWriter  # type: ignore
 from unittest.mock import patch
 
@@ -22,15 +22,15 @@ def create_test_pdf():
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter
     
-    packet = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    c = canvas.Canvas(packet.name, pagesize=letter)
+    packet_path = os.path.join(temp_dir, "generated.pdf")
+    c = canvas.Canvas(packet_path, pagesize=letter)
     c.drawString(100, 750, "This is a test document.")
     c.drawString(100, 730, "It contains multiple lines of text.")
     c.drawString(100, 710, "Testing chunking functionality.")
     c.save()
     
     from pypdf import PdfReader  # type: ignore
-    reader = PdfReader(packet.name)
+    reader = PdfReader(packet_path)
     page = reader.pages[0]
     writer.add_page(page)
     
@@ -40,12 +40,12 @@ def create_test_pdf():
     return pdf_path, temp_dir
 
 
-@patch("app.ingestion.text_splitter.GoogleGenerativeAIEmbeddings")
-def test_process_pdf_to_chunks(mock_google_embeddings):
+@patch("app.rag.splitters.text_splitter.get_embedding_model")
+def test_process_pdf_to_chunks(mock_get_embedding_model):
     pdf_path, temp_dir = create_test_pdf()
     
     # Configure mock to return dummy vectors for semantic chunking
-    mock_instance = mock_google_embeddings.return_value
+    mock_instance = mock_get_embedding_model.return_value
     mock_instance.embed_documents.return_value = [[0.1, 0.2] for _ in range(10)]
     
     try:
