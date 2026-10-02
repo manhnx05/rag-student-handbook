@@ -1,52 +1,41 @@
 # IDE
 .idea/
-*.iml
 .vscode/
+*.iml
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
+.eggs/
 
 # Virtual env
-.env
+.venv/
 venv/
 env/
 
-# Data
+# Secrets
+.env
+
+# Data — raw uploads and vector DB are local-only
+data/raw/
+data/processed/
 data/vector_db/
-data/uploads/
 *.pdf
 
-# Node modules
-node_modules/
-.next/
-*.tsbuildinfo
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Docker
 docker-compose.override.yml
 
-# Lock file (optional but recommended to commit)
-# uv.lock
-
-# Markdown files
+# Markdown (exclude docs we removed; keep only project root MD)
 *.md
 !README.md
-!docs/README.md
