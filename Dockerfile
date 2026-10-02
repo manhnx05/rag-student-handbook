@@ -1,50 +1,32 @@
-# ── Stage 1: builder ─────────────────────────────────────────────────────────
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src/main/python \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency manifest and source for installation
-COPY pyproject.toml ./
-COPY app ./app
+COPY requirements.txt ./
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
 
-# Install all dependencies declared in pyproject.toml (including extras)
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir ".[dev]" 2>/dev/null || pip install --no-cache-dir .
+COPY src/main/python/ ./src/main/python/
+COPY src/alembic/ ./src/alembic/
+COPY alembic.ini ./
+COPY frontend/ ./frontend/
+RUN mkdir -p /app/data/raw
 
-# ── Stage 2: runtime ─────────────────────────────────────────────────────────
-FROM python:3.12-slim AS runtime
-
-WORKDIR /app
-
-# Runtime system dependencies (libpq for asyncpg/psycopg)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copy application source
-COPY . .
-
-# Create non-root user for security
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser \
+RUN addgroup --system appgroup \
+    && adduser --system --ingroup appgroup appuser \
     && chown -R appuser:appgroup /app
 
 USER appuser
 
-EXPOSE 8000
+EXPOSE 8000 8501
 
-# Healthcheck: ping the health endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health/ || exit 1
-
-CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
