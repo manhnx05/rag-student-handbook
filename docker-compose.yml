@@ -1,94 +1,23 @@
-
-
-# ---------------------------------------------------------------------------
-# RAG Student Handbook — full Docker Compose stack
-#
-# Services:
-#   postgres   — relational store for users / chat sessions / messages
-#   neo4j      — knowledge graph store for entity relationships
-#   qdrant     — vector store for semantic search
-#   backend    — FastAPI application (Python 3.12)
-#   frontend   — Next.js 14 application
-#   nginx      — reverse proxy (port 80 → backend:8000 / frontend:3000)
-#
-# Usage:
-#   cp .env.example .env   # fill in secrets
-#   docker compose up -d --build
-# ---------------------------------------------------------------------------
-
 services:
-
-  # ── PostgreSQL ─────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:15-alpine
-    container_name: student-handbook-postgres
-    restart: unless-stopped
+    image: postgres:16-alpine
     environment:
-      POSTGRES_USER:     ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-student_handbook}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student_handbook_local}
+      POSTGRES_DB: ${POSTGRES_DB:-student_handbook}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
 
-  # ── Neo4j ──────────────────────────────────────────────────────────────────
-  neo4j:
-    image: neo4j:5-community
-    container_name: student-handbook-neo4j
-    restart: unless-stopped
-    environment:
-      NEO4J_AUTH:                        ${NEO4J_USER}/${NEO4J_PASSWORD}
-      NEO4J_dbms_default__database:      ${NEO4J_DB}
-      NEO4J_dbms_memory_heap_initial__size: 256m
-      NEO4J_dbms_memory_heap_max__size:     512m
-      # Run the init cypher script on first boot via apoc or shell
-      NEO4J_PLUGINS: '["apoc"]'
-      NEO4J_dbms_security_procedures_unrestricted: apoc.*
-    ports:
-      - "7475:7474"   # Browser / HTTP (host:container)
-      - "7688:7687"   # Bolt (host:container)
-    volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-      - ./docker/infra/neo4j/init.cypher:/var/lib/neo4j/import/init.cypher
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
-
-  # ── Qdrant ─────────────────────────────────────────────────────────────────
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: student-handbook-qdrant
-    restart: unless-stopped
-    ports:
-      - "6335:6333"   # REST API (host:container)
-      - "6336:6334"   # gRPC (host:container)
-    volumes:
-      - qdrant_data:/qdrant/storage
-      - ./docker/infra/qdrant/config.yaml:/qdrant/config/production.yaml:ro
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET / HTTP/1.0\\r\\n\\r\\n\" >&3 && cat <&3 | grep -q 200'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  # ── Redis (Cache) ──────────────────────────────────────────────────────────
   redis:
-    image: redis/redis-stack-server:latest
-    container_name: student-handbook-redis
-    restart: unless-stopped
+    image: redis/redis-stack-server:7.4.0-v3
     ports:
       - "6379:6379"
     healthcheck:
@@ -96,150 +25,112 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
 
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
 
-  # ── Backend (FastAPI) ──────────────────────────────────────────────────────
-  backend:
-    build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile
-    container_name: student-handbook-backend
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  neo4j:
+    image: neo4j:5-community
     environment:
-      # ── Database ────────────────────────────────────────────────────────
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-student_handbook_local}
+      NEO4J_dbms_default__database: ${NEO4J_DB:-neo4j}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 45s
 
-      # ── Neo4j ───────────────────────────────────────────────────────────
-      NEO4J_URI:      bolt://neo4j:7687
-      NEO4J_USER:     ${NEO4J_USER}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-      NEO4J_DB:       ${NEO4J_DB}
-
-      # ── Qdrant ──────────────────────────────────────────────────────────
-      QDRANT_URL:        http://qdrant:6333
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    environment: &app_environment
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-student_handbook}:${POSTGRES_PASSWORD:-student_handbook_local}@postgres:5432/${POSTGRES_DB:-student_handbook}
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-student_handbook}
-
-      # ── Gemini ──────────────────────────────────────────────────────────
-      GEMINI_API_KEY:  ${GEMINI_API_KEY}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-student_handbook_local}
+      NEO4J_DB: ${NEO4J_DB:-neo4j}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-models/embedding-001}
-      LLM_MODEL:       ${LLM_MODEL:-gemini-1.5-flash}
-
-      # ── Redis ───────────────────────────────────────────────────────────
-      REDIS_URL:       redis://redis:6379
-
-      # ── LangSmith ───────────────────────────────────────────────────────
-      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
-      LANGCHAIN_API_KEY:    ${LANGCHAIN_API_KEY:-}
-      LANGCHAIN_PROJECT:    ${LANGCHAIN_PROJECT:-student_handbook}
-
-      # ── Auth ────────────────────────────────────────────────────────────
-      JWT_SECRET_KEY:              ${JWT_SECRET_KEY}
-      ALGORITHM:                   ${ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
-
-      # ── CORS ────────────────────────────────────────────────────────────
-      # nginx sits in front so the browser hits port 80; keep localhost:80
-      # as default and add any additional origins separated by commas.
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80}
-
-      # ── Email (Resend) ───────────────────────────────────────────────────
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-
-      # ── RAG tuning ──────────────────────────────────────────────────────
-      CHUNK_SIZE:    ${CHUNK_SIZE:-500}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
+      LLM_MODEL: ${LLM_MODEL:-gemini-1.5-flash}
+      CHUNK_SIZE: ${CHUNK_SIZE:-500}
       CHUNK_OVERLAP: ${CHUNK_OVERLAP:-100}
       TOP_K_RESULTS: ${TOP_K_RESULTS:-3}
-    volumes:
-      - ./data:/app/data   # PDF / processed data directory
-    expose:
-      - "8000"
-
-  # ── Celery Worker ──────────────────────────────────────────────────────────
-  celery_worker:
-    build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile
-    container_name: student-handbook-celery
-    restart: unless-stopped
-    command: celery -A app.worker.celery_app worker --loglevel=info
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      QDRANT_URL: http://qdrant:6333
-      NEO4J_URI: bolt://neo4j:7687
-      NEO4J_USER: ${NEO4J_USER}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-      NEO4J_DB: ${NEO4J_DB}
-      REDIS_URL: redis://redis:6379
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
+      GRAPH_INGESTION_ENABLED: ${GRAPH_INGESTION_ENABLED:-true}
+      CORS_ORIGINS: http://localhost:8501
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-student_handbook}
+    ports:
+      - "8000:8000"
     volumes:
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
-  # ── Frontend (Next.js) ────────────────────────────────────────────────────
-  frontend:
+  worker:
     build:
-      context: ./frontend
+      context: .
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
-    container_name: student-handbook-frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    environment:
-      # Requests from the browser go through nginx → /api/
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
-      # Google OAuth client ID (public, safe to expose)
-      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
-    expose:
-      - "3000"
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # ── Nginx (reverse proxy) ─────────────────────────────────────────────────
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: student-handbook-nginx
-    restart: unless-stopped
-    depends_on:
-      - backend
-      - frontend
-    ports:
-      - "8080:80"
+    command: celery -A app.workers.celery_worker.celery_app worker --loglevel=info
+    environment: *app_environment
     volumes:
-      - ./docker/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+      - ./data:/app/data
+    depends_on:
+      api:
+        condition: service_healthy
 
-# ── Named volumes ────────────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      streamlit run frontend/streamlit_app.py
+      --server.address 0.0.0.0
+      --server.port 8501
+      --browser.gatherUsageStats false
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   postgres_data:
-  neo4j_data:
-  neo4j_logs:
   qdrant_data:
+  neo4j_data:
