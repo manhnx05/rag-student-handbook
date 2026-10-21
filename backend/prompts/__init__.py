@@ -1,0 +1,15 @@
+"""Prompt templates used by the handbook RAG agent."""
+
+from backend.prompts.prompt_templates import (
+    ANSWER_SYSTEM_PROMPT,
+    CONTEXTUALIZE_QUERY_SYSTEM_PROMPT,
+    DOCUMENT_GRADER_SYSTEM_PROMPT,
+    QUERY_REWRITE_SYSTEM_PROMPT,
+)
+
+__all__ = [
+    "ANSWER_SYSTEM_PROMPT",
+    "CONTEXTUALIZE_QUERY_SYSTEM_PROMPT",
+    "DOCUMENT_GRADER_SYSTEM_PROMPT",
+    "QUERY_REWRITE_SYSTEM_PROMPT",
+]
