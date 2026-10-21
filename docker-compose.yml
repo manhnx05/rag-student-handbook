@@ -9,7 +9,6 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -59,7 +58,7 @@ services:
       dockerfile: Dockerfile
     command: >
       sh -c "alembic upgrade head &&
-             uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+             uvicorn main:app --host 0.0.0.0 --port 8000"
     environment: &app_environment
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
       DATABASE_URL: postgresql://${POSTGRES_USER:-student_handbook}:${POSTGRES_PASSWORD:-student_handbook_local}@postgres:5432/${POSTGRES_DB:-student_handbook}
@@ -70,12 +69,13 @@ services:
       NEO4J_USER: ${NEO4J_USER:-neo4j}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-student_handbook_local}
       NEO4J_DB: ${NEO4J_DB:-neo4j}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-models/embedding-001}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-dangvantuan/vietnamese-embedding}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-768}
-      LLM_MODEL: ${LLM_MODEL:-gemini-1.5-flash}
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.1-flash-lite}
       CHUNK_SIZE: ${CHUNK_SIZE:-500}
       CHUNK_OVERLAP: ${CHUNK_OVERLAP:-100}
       TOP_K_RESULTS: ${TOP_K_RESULTS:-3}
+      RETRIEVAL_RECALL_K: ${RETRIEVAL_RECALL_K:-20}
       GRAPH_INGESTION_ENABLED: ${GRAPH_INGESTION_ENABLED:-true}
       CORS_ORIGINS: http://localhost:8501
       LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
@@ -105,7 +105,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: celery -A app.workers.celery_worker.celery_app worker --loglevel=info
+    command: celery -A backend.workers.celery_worker.celery_app worker --loglevel=info
     environment: *app_environment
     volumes:
       - ./data:/app/data

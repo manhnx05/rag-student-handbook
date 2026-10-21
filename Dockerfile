@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/src/main/python \
+    PYTHONPATH=/app \
     PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
@@ -14,9 +14,11 @@ RUN apt-get update \
 COPY requirements.txt ./
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt
+RUN pip install greenlet
 
-COPY src/main/python/ ./src/main/python/
-COPY src/alembic/ ./src/alembic/
+COPY backend/ ./backend/
+COPY main.py ./
+COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY frontend/ ./frontend/
 RUN mkdir -p /app/data/raw
@@ -29,4 +31,4 @@ USER appuser
 
 EXPOSE 8000 8501
 
-CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
