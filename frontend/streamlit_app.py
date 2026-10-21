@@ -102,34 +102,6 @@ with st.sidebar:
         except RuntimeError as exc:
             st.error(str(exc))
 
-    st.divider()
-    st.subheader("Thêm tài liệu")
-    uploaded_pdf = st.file_uploader("Chọn tệp PDF", type=["pdf"])
-    if st.button(
-        "Tải lên và lập chỉ mục",
-        disabled=uploaded_pdf is None,
-        use_container_width=True,
-    ):
-        try:
-            result = _request(
-                "POST",
-                "/api/ingest",
-                files={
-                    "file": (
-                        uploaded_pdf.name,
-                        uploaded_pdf.getvalue(),
-                        "application/pdf",
-                    )
-                },
-                timeout=60.0,
-            ).json()
-            st.success(
-                f"Đã đưa vào hàng đợi: {result['filename']} "
-                f"(task `{result['task_id']}`)"
-            )
-        except (RuntimeError, KeyError) as exc:
-            st.error(str(exc))
-
 for message in st.session_state.messages:
     with st.chat_message(_display_role(message["role"])):
         st.markdown(message["content"])
