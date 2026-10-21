@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from app.db.models import ChatMessage, ChatSession
-from app.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
+from backend.db.models import ChatMessage, ChatSession
+from backend.services.chat_service import ChatService, SESSION_TITLE_MAX_LEN
 
 
 def _db_with_result(items):

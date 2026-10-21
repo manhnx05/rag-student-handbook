@@ -4,8 +4,10 @@ import os
 import sys
 from pathlib import Path
 
-PYTHON_SOURCE = Path(__file__).resolve().parents[1] / "src" / "main" / "python"
-sys.path.insert(0, str(PYTHON_SOURCE))
+# The application lives in the ``backend`` package and the root ``main.py``
+# entrypoint, so the repository root must be importable.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 
 os.environ.setdefault("GEMINI_API_KEY", "test-gemini-api-key")
 os.environ.setdefault(

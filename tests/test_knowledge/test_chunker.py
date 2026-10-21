@@ -1,70 +1,46 @@
-import os
-import sys
-import pathlib
-import tempfile
+"""Tests for the Markdown-based chunker (backend.chunking.chunker)."""
 
-BACKEND = pathlib.Path(__file__).parent.parent.parent / "src" / "main" / "python"
-sys.path.insert(0, str(BACKEND))
-
-from app.rag.splitters.text_splitter import process_pdf_to_chunks
-from pypdf import PdfWriter  # type: ignore
 from unittest.mock import patch
 
+import pytest
 
-def create_test_pdf():
-    """Create a simple test PDF file."""
-    temp_dir = tempfile.mkdtemp()
-    pdf_path = os.path.join(temp_dir, "test.pdf")
-    
-    writer = PdfWriter()
-    page = writer.add_blank_page(width=612, height=792)
-    
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.pagesizes import letter
-    
-    packet_path = os.path.join(temp_dir, "generated.pdf")
-    c = canvas.Canvas(packet_path, pagesize=letter)
-    c.drawString(100, 750, "This is a test document.")
-    c.drawString(100, 730, "It contains multiple lines of text.")
-    c.drawString(100, 710, "Testing chunking functionality.")
-    c.save()
-    
-    from pypdf import PdfReader  # type: ignore
-    reader = PdfReader(packet_path)
-    page = reader.pages[0]
-    writer.add_page(page)
-    
-    with open(pdf_path, "wb") as f:
-        writer.write(f)
-    
-    return pdf_path, temp_dir
+from backend.chunking.chunker import process_pdf_to_chunks
 
 
-@patch("app.rag.splitters.text_splitter.get_embedding_model")
-def test_process_pdf_to_chunks(mock_get_embedding_model):
-    pdf_path, temp_dir = create_test_pdf()
-    
-    # Configure mock to return dummy vectors for semantic chunking
-    mock_instance = mock_get_embedding_model.return_value
-    mock_instance.embed_documents.return_value = [[0.1, 0.2] for _ in range(10)]
-    
-    try:
-        chunks = process_pdf_to_chunks(pdf_path)
-        
-        assert len(chunks) > 0, "Should generate at least one chunk"
-        
-        for chunk in chunks:
-            assert "id" in chunk, "Chunk should have 'id' field"
-            assert "content" in chunk, "Chunk should have 'content' field"
-            assert "metadata" in chunk, "Chunk should have 'metadata' field"
-            assert "source" in chunk["metadata"], "Metadata should have 'source'"
-            assert "page" in chunk["metadata"], "Metadata should have 'page'"
-        
-        print("test_process_pdf_to_chunks passed!")
-    finally:
-        import shutil
-        shutil.rmtree(temp_dir)
+def test_process_pdf_to_chunks_uses_page_markdown(tmp_path):
+    """process_pdf_to_chunks reads page-chunked Markdown and keeps citations."""
+    pdf_path = tmp_path / "handbook.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4 dummy content")
+    pages = [
+        {
+            "metadata": {"page": 1},
+            "text": "# Học phí\nSinh viên đóng học phí theo số tín chỉ đã đăng ký.",
+        },
+        {
+            "metadata": {"page": 2},
+            "text": "## Đăng ký học phần\nSinh viên đăng ký học phần trên cổng thông tin.",
+        },
+    ]
+
+    with patch(
+        "backend.chunking.chunker.pymupdf4llm.to_markdown",
+        return_value=pages,
+    ) as to_markdown:
+        chunks = process_pdf_to_chunks(str(pdf_path))
+
+    to_markdown.assert_called_once_with(str(pdf_path), page_chunks=True)
+    assert len(chunks) > 0, "Should generate at least one chunk"
+
+    for index, chunk in enumerate(chunks):
+        assert chunk["id"] == f"handbook.pdf_c{index}"
+        assert "content" in chunk
+        assert "metadata" in chunk
+        assert chunk["metadata"]["source"] == "handbook.pdf"
+        assert "page" in chunk["metadata"]
+
+    assert {chunk["metadata"]["page"] for chunk in chunks} == {1, 2}
 
 
-if __name__ == "__main__":
-    test_process_pdf_to_chunks()
+def test_process_pdf_to_chunks_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        process_pdf_to_chunks(str(tmp_path / "does_not_exist.pdf"))

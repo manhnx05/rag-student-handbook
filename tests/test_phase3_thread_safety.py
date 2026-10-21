@@ -10,25 +10,25 @@ import pytest
 
 
 def test_async_singletons_use_asyncio_locks():
-    from app.rag.knowledge_graph import graph_store
-    from app.rag.vectorstore import vector_store
+    from backend.retrieval import graph_store
+    from backend.vectordb import vector_store
 
     assert isinstance(graph_store._graph_store_lock, asyncio.Lock)
     assert isinstance(vector_store._lock, asyncio.Lock)
 
 
 def test_sync_singletons_use_thread_locks():
-    from app.rag.embeddings import embeddings
-    from app.rag.vectorstore import qdrant_client
+    from backend.embeddings import embedder
+    from backend.vectordb import qdrant_client
 
     lock_type = type(threading.Lock())
-    assert isinstance(embeddings._embedding_lock, lock_type)
+    assert isinstance(embedder._embedding_lock, lock_type)
     assert isinstance(qdrant_client._client_lock, lock_type)
 
 
 @pytest.mark.asyncio
 async def test_vector_store_is_constructed_once_for_concurrent_async_callers():
-    from app.rag.vectorstore import vector_store as module
+    from backend.vectordb import vector_store as module
 
     await module.reset_vector_store()
     instance = MagicMock()
@@ -46,7 +46,7 @@ async def test_vector_store_is_constructed_once_for_concurrent_async_callers():
 
 @pytest.mark.asyncio
 async def test_graph_store_is_constructed_once_for_concurrent_async_callers():
-    from app.rag.knowledge_graph import graph_store as module
+    from backend.retrieval import graph_store as module
 
     await module.reset_graph_store()
     instance = MagicMock()
@@ -64,14 +64,14 @@ async def test_graph_store_is_constructed_once_for_concurrent_async_callers():
 
 
 def test_embedding_model_is_constructed_once_for_concurrent_threads():
-    from app.rag.embeddings import embeddings as module
+    from backend.embeddings import embedder as module
 
     module.reset_embedding_model()
     results = []
     errors = []
 
     with patch(
-        "app.rag.embeddings.embeddings.GoogleGenerativeAIEmbeddings",
+        "backend.embeddings.embedder.HuggingFaceEmbeddings",
         return_value=MagicMock(),
     ) as constructor:
         def worker():
